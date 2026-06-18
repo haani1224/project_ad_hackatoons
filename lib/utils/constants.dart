@@ -22,3 +22,27 @@ class AppStyles {
     color: Colors.black54,
   );
 }
+
+class AppConstants {
+  // Supabase — fill these in from your Supabase project settings
+  static const String supabaseUrl = 'https://pfeywemicycpsgidebpo.supabase.co';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmZXl3ZW1pY3ljcHNnaWRlYnBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODg0NDAsImV4cCI6MjA5NzI2NDQ0MH0.2_Wki6RAABADNVDSMvfhJYDC3aEjnCxN2IWu_Cj8Qug';
+
+  // User roles stored in profiles table
+  static const String roleTeacher = 'teacher';
+  static const String rolePrincipal = 'principal';
+
+  // Training categories (matches PDF)
+  static const List<String> trainingCategories = [
+    'Teaching Skills',
+    'Child Development',
+    'Safety and First Aid',
+    'Islamic Education',
+    'Classroom Management',
+    'ICT/Technology',
+    'Others',
+  ];
+
+  // Training modes
+  static const List<String> trainingModes = ['Online', 'Physical'];
+}

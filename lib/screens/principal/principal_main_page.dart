@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:project_ad_hackatoons/screens/principal/manage_user_page.dart';
-import 'package:project_ad_hackatoons/screens/principal/principal_duty_page.dart';
+import 'manage_user_page.dart';
+import 'principal_duty_page.dart';
+import 'principal_training_screen.dart';
+import 'principal_records_screen.dart';
 import 'principal_dashboard.dart';
 
 const Color _navy = Color(0xFF2E4365);
@@ -93,17 +95,29 @@ class PrincipalMainPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                const _ModuleCard(
+                _ModuleCard(
                   title: 'Records',
                   subtitle: 'Files & documents',
                   icon: Icons.folder_rounded,
                   color: Color(0xFF0EA5E9),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrincipalRecordsScreen(), 
+                    ),
+                  ),
                 ),
-                const _ModuleCard(
+                _ModuleCard(
                   title: 'Training',
                   subtitle: 'Development programmes',
                   icon: Icons.school_rounded,
-                  color: Color(0xFFEC4899),
+                  color:Color(0xFFEC4899),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrincipalTrainingScreen(), 
+                    ),
+                  ),
                 ),
                 _ModuleCard(
                   title: 'Manage Users',

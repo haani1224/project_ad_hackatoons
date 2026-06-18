@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:project_ad_hackatoons/screens/login_page.dart';
+import 'screens/login_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'screens/auth/login_screen.dart';
 import 'screens/teacher/teacher_main_page.dart';

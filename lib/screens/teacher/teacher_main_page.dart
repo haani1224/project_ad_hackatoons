@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../models/teacher_model.dart';
+import '../../models/training_model.dart';
 import 'teacher_duty_page.dart';
+import 'teacher_profile_screen.dart';
+import 'teacher_training_screen.dart';
 import 'teacher_home.dart';
 
 class TeacherMainPage extends StatelessWidget {
-  final TeacherModel teacher;
+  final TeacherModel teacher;// 1. Add this variable
 
   const TeacherMainPage({
     super.key,
@@ -109,7 +112,16 @@ class TeacherMainPage extends StatelessWidget {
                   subtitle: "Files & important docs",
                   icon: Icons.folder_open_rounded,
                   gradient: const [Color(0xFFC0392B), Color(0xFFE74C3C)],
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TeacherProfileScreen(
+                          teacherId: teacher.id,
+                        ),
+                      ),
+                    );
+                  },
                 ),
 
                 _moduleCard(
@@ -118,7 +130,16 @@ class TeacherMainPage extends StatelessWidget {
                   subtitle: "Professional development",
                   icon: Icons.school_outlined,
                   gradient: const [Color(0xFF1565A8), Color(0xFF1E90FF)],
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TeacherTrainingScreen(
+                          teacherId: teacher.id,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ]),
             ),
