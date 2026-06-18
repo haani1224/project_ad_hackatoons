@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
-// import 'teacher_home.dart';
+import '../../models/teacher_model.dart';
+import 'teacher_duty_page.dart';
 
 class TeacherMainPage extends StatelessWidget {
-  final int userId;
-  final String teacherName; // Pass the name from your DB/session
+  final TeacherModel teacher;
 
   const TeacherMainPage({
     super.key,
-    required this.userId,
-    this.teacherName = "Teacher", // fallback default
+    required this.teacher,
   });
 
   static const Color navy = Color(0xFF1B2E4B);
   static const Color navyLight = Color(0xFF2E4365);
   static const Color gold = Color(0xFFE59D2C);
-  static const Color goldLight = Color(0xFFFFF0CC);
   static const Color bgColor = Color(0xFFF0F2F7);
 
   @override
@@ -23,12 +21,10 @@ class TeacherMainPage extends StatelessWidget {
       backgroundColor: bgColor,
       body: CustomScrollView(
         slivers: [
-          // ── Curved Header ──
           SliverToBoxAdapter(
-            child: _buildHeader(context),
+            child: _buildHeader(),
           ),
 
-          // ── Section Label ──
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
@@ -44,7 +40,6 @@ class TeacherMainPage extends StatelessWidget {
             ),
           ),
 
-          // ── Module Grid ──
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             sliver: SliverGrid(
@@ -61,15 +56,9 @@ class TeacherMainPage extends StatelessWidget {
                   subtitle: "Raise issues & submit reports",
                   icon: Icons.insert_chart_outlined_rounded,
                   gradient: const [Color(0xFF2E4365), Color(0xFF3A6186)],
-                  // onTap: () {
-                  //   Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(
-                  //       builder: (_) => TeacherHome(userId: userId),
-                  //     ),
-                  //   );
-                  // },
+                  onTap: () {},
                 ),
+
                 _moduleCard(
                   context,
                   title: "Performance",
@@ -78,6 +67,7 @@ class TeacherMainPage extends StatelessWidget {
                   gradient: const [Color(0xFFB07D1A), Color(0xFFE59D2C)],
                   onTap: () {},
                 ),
+
                 _moduleCard(
                   context,
                   title: "Leave",
@@ -86,6 +76,7 @@ class TeacherMainPage extends StatelessWidget {
                   gradient: const [Color(0xFF1A7A5E), Color(0xFF2EAF88)],
                   onTap: () {},
                 ),
+
                 _moduleCard(
                   context,
                   title: "Tasks",
@@ -93,14 +84,17 @@ class TeacherMainPage extends StatelessWidget {
                   icon: Icons.task_alt_rounded,
                   gradient: const [Color(0xFF6B3FA0), Color(0xFF9B6BD1)],
                   onTap: () {
-                    // Navigator.push(
-                    //   context,
-                    //   MaterialPageRoute(
-                    //     builder: (_) => TeacherDutyPage(teacherId: userId),
-                    //   ),
-                    // );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TeacherDutyPage(
+                          teacher: teacher,
+                        ),
+                      ),
+                    );
                   },
                 ),
+
                 _moduleCard(
                   context,
                   title: "Records",
@@ -109,6 +103,7 @@ class TeacherMainPage extends StatelessWidget {
                   gradient: const [Color(0xFFC0392B), Color(0xFFE74C3C)],
                   onTap: () {},
                 ),
+
                 _moduleCard(
                   context,
                   title: "Training",
@@ -127,8 +122,7 @@ class TeacherMainPage extends StatelessWidget {
     );
   }
 
-  // ── Header Widget ──
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader() {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -148,38 +142,29 @@ class TeacherMainPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top row: logo + school name + notification
               Row(
                 children: [
-                  // ── School Logo ──
-                  // Replace AssetImage path with your actual logo asset:
-                  // assets/images/LOGO TADIKA AQIL MIQAIL.jpg
                   Container(
                     width: 52,
                     height: 52,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
                       image: const DecorationImage(
-                        // ↓ Change this path to match your pubspec.yaml asset declaration
                         image: AssetImage(
-                            'assets/images/LOGO TADIKA AQIL MIQAIL.jpg'),
+                          'assets/images/LOGO TADIKA AQIL MIQAIL.jpg',
+                        ),
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
+
                   const SizedBox(width: 12),
-                  Expanded(
+
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           "Tadika Aqil Miqail",
                           style: TextStyle(
@@ -199,7 +184,7 @@ class TeacherMainPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Notification bell
+
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.12),
@@ -217,28 +202,27 @@ class TeacherMainPage extends StatelessWidget {
 
               const SizedBox(height: 28),
 
-              // Welcome text
               Text(
                 _getGreeting(),
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.65),
                   fontSize: 13,
-                  letterSpacing: 0.3,
                 ),
               ),
+
               const SizedBox(height: 4),
+
               Text(
-                teacherName,
+                teacher.name,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
                   fontSize: 26,
-                  letterSpacing: 0.2,
                 ),
               ),
+
               const SizedBox(height: 16),
 
-              // Gold accent divider + tagline
               Row(
                 children: [
                   Container(
@@ -262,7 +246,6 @@ class TeacherMainPage extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // Quick stats bar
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -324,12 +307,16 @@ class TeacherMainPage extends StatelessWidget {
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return "Good Morning,";
-    if (hour < 17) return "Good Afternoon,";
-    return "Good Evening,";
+
+    if (hour < 12) {
+      return "Good Morning,";
+    } else if (hour < 17) {
+      return "Good Afternoon,";
+    } else {
+      return "Good Evening,";
+    }
   }
 
-  // ── Module Card ──
   Widget _moduleCard(
     BuildContext context, {
     required String title,
@@ -361,7 +348,6 @@ class TeacherMainPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Icon container with gradient
                 Container(
                   width: 46,
                   height: 46,
@@ -376,7 +362,6 @@ class TeacherMainPage extends StatelessWidget {
                   child: Icon(icon, color: Colors.white, size: 24),
                 ),
 
-                // Title + subtitle
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

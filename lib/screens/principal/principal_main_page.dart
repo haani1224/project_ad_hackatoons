@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:project_ad_hackatoons/screens/principal/manage_user_page.dart';
+import 'package:project_ad_hackatoons/screens/principal/principal_duty_page.dart';
 // import 'principal_dashboard.dart';
 
 const Color _navy = Color(0xFF2E4365);
@@ -79,15 +81,17 @@ class PrincipalMainPage extends StatelessWidget {
                   icon: Icons.event_note_rounded,
                   color: Color(0xFFF97316),
                 ),
-                const _ModuleCard(
+                _ModuleCard(
                   title: 'Tasks',
                   subtitle: 'View task list',
                   icon: Icons.task_alt_rounded,
                   color: Color(0xFF8B5CF6),
-                  // onTap: () => Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(builder: (_) => const PrincipalDashboard()),
-                  // ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrincipalDutyPage(),
+                    ),
+                  ),
                 ),
                 const _ModuleCard(
                   title: 'Records',
@@ -100,6 +104,18 @@ class PrincipalMainPage extends StatelessWidget {
                   subtitle: 'Development programmes',
                   icon: Icons.school_rounded,
                   color: Color(0xFFEC4899),
+                ),
+                _ModuleCard(
+                  title: 'Manage Users',
+                  subtitle: 'View and manage teachers',
+                  icon: Icons.people_alt_rounded,
+                  color: Color(0xFFE59D2C),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ManageUserPage(),
+                    ),
+                  ),
                 ),
               ]),
             ),

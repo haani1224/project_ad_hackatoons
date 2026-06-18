@@ -131,8 +131,8 @@ class _TeacherDutyPageState extends State<TeacherDutyPage> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => TeacherMainPage(
-                    userId: widget.teacher.id,
-                  ),
+                    teacher: widget.teacher,
+                  )
                 ),
                 (route) => false,
               );
