@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project_ad_hackatoons/screens/principal/manage_user_page.dart';
 import 'package:project_ad_hackatoons/screens/principal/principal_duty_page.dart';
-// import 'principal_dashboard.dart';
+import 'principal_dashboard.dart';
 
 const Color _navy = Color(0xFF2E4365);
 const Color _navyDark = Color(0xFF1A2F50);
@@ -64,10 +64,10 @@ class PrincipalMainPage extends StatelessWidget {
                   subtitle: 'View teacher reports',
                   icon: Icons.insert_chart_rounded,
                   color: const Color(0xFF3B6CF8),
-                  // onTap: () => Navigator.push(
-                  //   // context,
-                  //   // MaterialPageRoute(builder: (_) => const PrincipalDashboard()),
-                  // ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => PrincipalDashboard()),
+                  ),
                 ),
                 const _ModuleCard(
                   title: 'Performance',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/teacher_model.dart';
 import 'teacher_duty_page.dart';
+import 'teacher_home.dart';
 
 class TeacherMainPage extends StatelessWidget {
   final TeacherModel teacher;
@@ -56,7 +57,14 @@ class TeacherMainPage extends StatelessWidget {
                   subtitle: "Raise issues & submit reports",
                   icon: Icons.insert_chart_outlined_rounded,
                   gradient: const [Color(0xFF2E4365), Color(0xFF3A6186)],
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TeacherHome(userId: teacher.id),
+                      ),
+                    );
+                  },
                 ),
 
                 _moduleCard(
