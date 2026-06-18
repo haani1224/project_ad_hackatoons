@@ -1,26 +1,21 @@
 import 'package:flutter/material.dart';
-// import 'teacher_home.dart';
+// import 'principal_dashboard.dart';
 
-class TeacherMainPage extends StatelessWidget {
-final String userId;
+const Color _navy = Color(0xFF2E4365);
+const Color _gold = Color(0xFFE59D2C);
 
-const TeacherMainPage({
-super.key,
-required this.userId,
-});
+class PrincipalMainPage extends StatelessWidget {
+  const PrincipalMainPage({super.key});
 
-static const Color navy = Color(0xFF2E4365);
-static const Color gold = Color(0xFFE59D2C);
-
-@override
-Widget build(BuildContext context) {
-return Scaffold(
-backgroundColor: const Color(0xFFF5F6F8),
-appBar: AppBar(
-title: const Text("Teacher Dashboard"),
-backgroundColor: navy,
-),
-body: Padding(
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F6F8),
+      appBar: AppBar(
+        title: const Text("Principal Dashboard"),
+        backgroundColor: _navy,
+      ),
+      body: Padding(
         padding: const EdgeInsets.all(16),
         child: GridView.count(
           crossAxisCount: 2,
@@ -35,9 +30,7 @@ body: Padding(
             //     Navigator.push(
             //       context,
             //       MaterialPageRoute(
-            //         builder: (_) => TeacherHome(
-            //           userId: userId,
-            //         ),
+            //         builder: (_) => const PrincipalDashboard(),
             //       ),
             //     );
             //   },
@@ -82,40 +75,41 @@ body: Padding(
       ),
     );
   }
+}
 
-  Widget _moduleCard(
-BuildContext context, {
-required String title,
-required IconData icon,
-required VoidCallback onTap,
+Widget _moduleCard(
+  BuildContext context, {
+  required String title,
+  required IconData icon,
+  required VoidCallback onTap,
 }) {
-return InkWell(
-onTap: onTap,
-borderRadius: BorderRadius.circular(16),
-child: Card(
-elevation: 4,
-shape: RoundedRectangleBorder(
-borderRadius: BorderRadius.circular(16),
-),
-child: Column(
-mainAxisAlignment: MainAxisAlignment.center,
-children: [
-Icon(
-icon,
-size: 55,
-color: gold,
-),
-const SizedBox(height: 12),
-Text(
-title,
-style: const TextStyle(
-fontWeight: FontWeight.bold,
-fontSize: 16,
-),
-),
-],
-),
-),
-);
+  return InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(16),
+    child: Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 55,
+            color: _gold,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
-}
+

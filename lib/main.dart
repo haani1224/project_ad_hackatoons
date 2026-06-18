@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/auth/login_screen.dart';
+// import 'screens/auth/login_screen.dart';
 import 'screens/teacher/teacher_main_page.dart';
 // import 'screens/teacher/teacher_home.dart';
 // import 'screens/principal/principal_home.dart';
@@ -13,11 +13,11 @@ void main() async {
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnbHBvcG5yaW5wZ2hidXZja3J4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MTM0MzAsImV4cCI6MjA5NzI4OTQzMH0.rzcw0u7QD5leMj8SNweo5A2fylvDiCq0bBaU5-BbOhc',
   );
 
-  runApp(const MyApp());
+  runApp(const GeniusAqilOS());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class GeniusAqilOS extends StatelessWidget {
+  const GeniusAqilOS({super.key});
 
   static const Color primaryBlue = Color(0xFF2E4365);
   static const Color accentYellow = Color(0xFFE59D2C);
