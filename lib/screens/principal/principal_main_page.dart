@@ -84,6 +84,10 @@ class PrincipalMainPage extends StatelessWidget {
                   subtitle: 'View task list',
                   icon: Icons.task_alt_rounded,
                   color: Color(0xFF8B5CF6),
+                  // onTap: () => Navigator.push(
+                  //   context,
+                  //   MaterialPageRoute(builder: (_) => const PrincipalDashboard()),
+                  // ),
                 ),
                 const _ModuleCard(
                   title: 'Records',

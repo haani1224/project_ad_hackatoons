@@ -36,7 +36,7 @@ class GeniusAqilOS extends StatelessWidget {
         useMaterial3: true,
       ),
       home: TeacherMainPage(
-        userId: "test-user",
+        userId: 2,
       ),
     );
   }

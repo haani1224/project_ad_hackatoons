@@ -61,14 +61,14 @@ class TeacherMainPage extends StatelessWidget {
                   subtitle: "Raise issues & submit reports",
                   icon: Icons.insert_chart_outlined_rounded,
                   gradient: const [Color(0xFF2E4365), Color(0xFF3A6186)],
-                  onTap: () {
-                    // Navigator.push(
-                    //   context,
-                    //   MaterialPageRoute(
-                    //     builder: (_) => TeacherHome(userId: userId),
-                    //   ),
-                    // );
-                  },
+                  // onTap: () {
+                  //   Navigator.push(
+                  //     context,
+                  //     MaterialPageRoute(
+                  //       builder: (_) => TeacherHome(userId: userId),
+                  //     ),
+                  //   );
+                  // },
                 ),
                 _moduleCard(
                   context,
@@ -92,7 +92,14 @@ class TeacherMainPage extends StatelessWidget {
                   subtitle: "Daily task checklist",
                   icon: Icons.task_alt_rounded,
                   gradient: const [Color(0xFF6B3FA0), Color(0xFF9B6BD1)],
-                  onTap: () {},
+                  onTap: () {
+                    // Navigator.push(
+                    //   context,
+                    //   MaterialPageRoute(
+                    //     builder: (_) => TeacherDutyPage(teacherId: userId),
+                    //   ),
+                    // );
+                  },
                 ),
                 _moduleCard(
                   context,
