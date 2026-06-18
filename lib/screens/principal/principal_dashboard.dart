@@ -1,4 +1,4 @@
-import 'package:project_ad_hackatoons/screens/principal/report_action_screen.dart'
+import 'report_action_screen.dart'
     show ReportActionScreen;
 import 'package:flutter/material.dart';
 import '../../services/report_service.dart';

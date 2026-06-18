@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:project_ad_hackatoons/screens/teacher/teacher_main_page.dart';
+import 'teacher_main_page.dart';
 import '../../models/duty_task_model.dart';
 import '../../models/teacher_model.dart';
 import '../../services/duty_service.dart';

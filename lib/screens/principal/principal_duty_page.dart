@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:project_ad_hackatoons/screens/principal/principal_main_page.dart';
+import 'principal_main_page.dart';
 import '../../models/duty_task_model.dart';
 import '../../services/duty_service.dart';
 import '../../widgets/duty_card.dart';
