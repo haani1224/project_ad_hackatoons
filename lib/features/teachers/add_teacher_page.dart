@@ -11,10 +11,10 @@ class AddTeacherPage extends StatefulWidget {
   const AddTeacherPage({super.key});
 
   @override
-  State<AddTeacherPage> createState() => _AddTeacherPageState();
+  State createState() => _AddTeacherPageState();
 }
 
-class _AddTeacherPageState extends State<AddTeacherPage> {
+class _AddTeacherPageState extends State {
   final _formKey = GlobalKey<FormState>();
   final repo = TeacherRepository();
 
@@ -22,11 +22,12 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
   final icNumber = TextEditingController();
   final phone = TextEditingController();
   final email = TextEditingController();
+  final password = TextEditingController();
   final address = TextEditingController();
   final postcode = TextEditingController();
+
   File? imageFile;
   final picker = ImagePicker();
-  final password = TextEditingController();
 
   String? gender;
   String? maritalStatus;
@@ -35,22 +36,9 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
   bool isLoading = false;
 
   final List<String> states = [
-    "Johor",
-    "Kedah",
-    "Kelantan",
-    "Melaka",
-    "Negeri Sembilan",
-    "Pahang",
-    "Perak",
-    "Perlis",
-    "Pulau Pinang",
-    "Sabah",
-    "Sarawak",
-    "Selangor",
-    "Terengganu",
-    "Kuala Lumpur",
-    "Labuan",
-    "Putrajaya",
+    "Johor","Kedah","Kelantan","Melaka","Negeri Sembilan",
+    "Pahang","Perak","Perlis","Pulau Pinang","Sabah","Sarawak",
+    "Selangor","Terengganu","Kuala Lumpur","Labuan","Putrajaya",
   ];
 
   String capitalize(String text) {
@@ -78,58 +66,70 @@ class _AddTeacherPageState extends State<AddTeacherPage> {
     final dd = ic.substring(4, 6);
 
     final year = yy > 30 ? '19$yy' : '20$yy';
-
     return '$year-$mm-$dd';
   }
 
-Future pickImage() async {
-  final picked = await picker.pickImage(source: ImageSource.gallery);
+  Future pickImage() async {
+    final picked = await picker.pickImage(source: ImageSource.gallery);
 
-  if (picked != null) {
-    setState(() {
-      imageFile = File(picked.path);
-    });
+    if (picked != null) {
+      setState(() {
+        imageFile = File(picked.path);
+      });
+    }
+  } 
+
+  Future<String?> uploadImage() async {
+    if (imageFile == null) {
+      debugPrint("NO IMAGE SELECTED");
+      return null;
+    }
+
+    try {
+      final fileName =
+          'teacher_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      final storage = Supabase.instance.client.storage.from('teacher-avatars');
+
+      debugPrint("START UPLOAD: $fileName");
+
+      await storage.upload(fileName, imageFile!);
+
+      final url = storage.getPublicUrl(fileName);
+
+      debugPrint("UPLOAD SUCCESS: $url");
+
+      return url;
+    } catch (e) {
+      debugPrint("UPLOAD FAILED: $e");
+      return null;
+    }
+    
   }
-}
 
-Future<String?> uploadImage() async {
-  if (imageFile == null) return null;
-
-  final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-
-  await Supabase.instance.client.storage
-      .from('teacher-avatars')
-      .upload(fileName, imageFile!);
-
-  final url = Supabase.instance.client.storage
-      .from('teacher-avatars')
-      .getPublicUrl(fileName);
-
-  return url;
-}
-
-  Future<void> submit() async {
+  Future submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => isLoading = true);
 
     try {
       final imageUrl = await uploadImage();
+      // final imageUrl = null;
 
-        final teacher = TeacherModel(
-          fullName: capitalize(fullName.text),
-          icNumber: icNumber.text.trim(),
-          dob: getDobFromIc(icNumber.text.trim()),
-          gender: gender,
-          address: address.text.trim(),
-          postcode: postcode.text.trim(),
-          state: selectedState,
-          phone: phone.text.trim(),
-          email: email.text.trim(),
-          maritalStatus: maritalStatus,
-          avatarUrl: imageUrl,
-          status: "pending",
-        );
+      final teacher = TeacherModel(
+        fullName: capitalize(fullName.text),
+        icNumber: icNumber.text.trim(),
+        dob: getDobFromIc(icNumber.text.trim()),
+        gender: gender,
+        address: address.text.trim(),
+        postcode: postcode.text.trim(),
+        state: selectedState,
+        phone: phone.text.trim(),
+        email: email.text.trim(),
+        maritalStatus: maritalStatus,
+        avatarUrl: imageUrl,
+        status: "pending",
+      );
 
       final error = await repo.registerTeacher(
         email: email.text.trim(),
@@ -137,12 +137,14 @@ Future<String?> uploadImage() async {
         teacher: teacher,
       );
 
+      if (!mounted) return;
+
       setState(() => isLoading = false);
 
       if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error: $error"),
+            content: Text(error),
             backgroundColor: Colors.red,
           ),
         );
@@ -151,18 +153,42 @@ Future<String?> uploadImage() async {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Teacher added successfully"),
+          content: Text("Registration submitted (pending approval)"),
           backgroundColor: Colors.green,
         ),
       );
 
       Navigator.pop(context, true);
-    } catch (e) {
+    }
+
+    on AuthException catch (e) {
       setState(() => isLoading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error: $e"),
+          content: Text("AUTH ERROR: ${e.message}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    on PostgrestException catch (e) {
+      setState(() => isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("DATABASE ERROR: ${e.message}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    catch (e) {
+      setState(() => isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("ERROR: $e"),
           backgroundColor: Colors.red,
         ),
       );
@@ -175,6 +201,7 @@ Future<String?> uploadImage() async {
     icNumber.dispose();
     phone.dispose();
     email.dispose();
+    password.dispose();
     address.dispose();
     postcode.dispose();
     super.dispose();
@@ -184,10 +211,9 @@ Future<String?> uploadImage() async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Add Teacher"),
+        title: const Text("Teacher Registration"),
         backgroundColor: AppTheme.gold,
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -196,12 +222,14 @@ Future<String?> uploadImage() async {
             children: [
 
               const Text(
-                "Personal Information",
+                "Register Teacher Account",
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
+              const SizedBox(height: 20),
 
               Center(
                 child: GestureDetector(
@@ -221,13 +249,10 @@ Future<String?> uploadImage() async {
 
               TextFormField(
                 controller: fullName,
-                textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
                   labelText: "Full Name",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Full Name is required" : null,
               ),
 
               const SizedBox(height: 15),
@@ -240,46 +265,6 @@ Future<String?> uploadImage() async {
                   labelText: "IC Number",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return "IC required";
-                  if (!isValidIC(v)) return "IC must be 12 digits";
-
-                  final dob = v.substring(0, 6);
-                  final day = int.parse(dob.substring(4, 6));
-                  final month = int.parse(dob.substring(2, 4));
-
-                  if (month < 1 || month > 12 || day < 1 || day > 31) {
-                    return "Invalid IC format";
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 15),
-
-              DropdownButtonFormField<String>(
-                value: gender,
-                decoration: const InputDecoration(
-                  labelText: "Gender",
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: "Male", child: Text("Male")),
-                  DropdownMenuItem(value: "Female", child: Text("Female")),
-                ],
-                onChanged: (v) => setState(() => gender = v),
-              ),
-
-              const SizedBox(height: 15),
-
-              TextFormField(
-                controller: phone,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: "Phone Number",
-                  border: OutlineInputBorder(),
-                ),
               ),
 
               const SizedBox(height: 15),
@@ -290,12 +275,9 @@ Future<String?> uploadImage() async {
                   labelText: "Email",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return null;
-                  if (!isValidEmail(v)) return "Invalid email";
-                  return null;
-                },
               ),
+
+              const SizedBox(height: 15),
 
               TextFormField(
                 controller: password,
@@ -304,72 +286,6 @@ Future<String?> uploadImage() async {
                   labelText: "Password",
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) {
-                  if (v == null || v.length < 6) {
-                    return "Password must be at least 6 characters";
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 15),
-
-              TextFormField(
-                controller: address,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: "Address",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              TextFormField(
-                controller: postcode,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: "Postcode",
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) {
-                  if (v != null &&
-                      v.isNotEmpty &&
-                      !RegExp(r'^\d{5}$').hasMatch(v)) {
-                    return "Postcode must be 5 digits";
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 15),
-
-              DropdownButtonFormField<String>(
-                value: selectedState,
-                decoration: const InputDecoration(
-                  labelText: "State",
-                  border: OutlineInputBorder(),
-                ),
-                items: states
-                    .map((e) =>
-                        DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (v) => setState(() => selectedState = v),
-              ),
-
-              const SizedBox(height: 15),
-
-              DropdownButtonFormField<String>(
-                value: maritalStatus,
-                decoration: const InputDecoration(
-                  labelText: "Marital Status",
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: "Single", child: Text("Single")),
-                  DropdownMenuItem(value: "Married", child: Text("Married")),
-                ],
-                onChanged: (v) => setState(() => maritalStatus = v),
               ),
 
               const SizedBox(height: 30),
@@ -383,16 +299,8 @@ Future<String?> uploadImage() async {
                   ),
                   onPressed: isLoading ? null : submit,
                   child: isLoading
-                      ? const CircularProgressIndicator(
-                          color: Colors.white,
-                        )
-                      : const Text(
-                          "SAVE TEACHER",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("SUBMIT REGISTRATION"),
                 ),
               ),
             ],

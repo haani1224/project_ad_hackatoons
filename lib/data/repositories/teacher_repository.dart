@@ -20,31 +20,45 @@ class TeacherRepository {
     required TeacherModel teacher,
   }) async {
     try {
-      // 1. Create Auth User
+      // // 1. Create Auth User
+      // final authRes = await supabase.auth.signUp(
+      //   email: email,
+      //   password: password,
+      // );
+
+      // final userId = authRes.user?.id;
+
+      // if (userId == null) {
+      //   return "Auth registration failed";
+      // }
+
+      // // 2. Insert into teachers table
+      // await supabase.from('teachers').insert({
+      //   ...teacher.toMap(),
+      //   'user_id': userId,
+      //   'role': 'teacher',
+      //   'status': 'pending', // 🔥 IMPORTANT for approval system
+      // });
+      // print("STEP 1");
       final authRes = await supabase.auth.signUp(
         email: email,
         password: password,
       );
+      // print("STEP 2");
 
-      final userId = authRes.user?.id;
-
-      if (userId == null) {
-        return "Auth registration failed";
-      }
-
-      // 2. Insert into teachers table
       await supabase.from('teachers').insert({
         ...teacher.toMap(),
-        'user_id': userId,
+        'user_id': authRes.user!.id,
         'role': 'teacher',
-        'status': 'pending', // 🔥 IMPORTANT for approval system
+        'status': 'pending',
       });
+      // print("STEP 3");
 
-      return null;
-    } catch (e) {
-      return e.toString();
-    }
-  }
+            return null;
+          } catch (e) {
+            return e.toString();
+          }
+        }
 
   // UPDATE STATUS (APPROVE/REJECT)
   Future updateTeacherStatus(String id, String status) async {

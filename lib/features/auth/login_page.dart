@@ -6,6 +6,8 @@ import '../../data/repositories/teacher_repository.dart';
 import '../teachers/add_teacher_page.dart';
 import '../dashboard/principal_dashboard.dart';
 import '../dashboard/teacher_dashboard.dart';
+import '../../presentation/principal/principal_approval_page.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -62,7 +64,7 @@ Future login() async {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => const TeacherListPage(),
+        builder: (_) => const TeacherDashboard(),
       ),
     );
   } 
@@ -70,7 +72,7 @@ Future login() async {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => const PrincipalDashboard(),
+        builder: (_) => const TeacherListPage(),
       ),
     );
   } 

@@ -9,8 +9,22 @@ class AuthService {
       password: password,
     );
 
-    return res.user;
-  }
+      final user = res.user;
+      if (user == null) return null;
+
+      final data = await supabase
+          .from('teachers')
+          .select('status')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      if (data == null || data['status'] != 'approved') {
+        await supabase.auth.signOut();
+        return null;
+      }
+
+      return user;
+    }
 
   Future<String?> getUserRole(String userId) async {
     try {
