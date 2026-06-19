@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-
 import '../../data/models/teacher_model.dart';
 import '../../data/repositories/teacher_repository.dart';
-
 import 'add_teacher_page.dart';
 import 'teacher_detail_page.dart';
 import '../test/edit_teacher_page.dart';
+import '../../presentation/widgets/app_drawer.dart';
 
 class TeacherListPage extends StatefulWidget {
   const TeacherListPage({super.key});
@@ -138,6 +137,10 @@ class _TeacherListPageState extends State {
         title: const Text("Teachers"),
       ),
 
+      drawer: const AppDrawer(
+          role: "principal",
+        ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: goToAddTeacher,
         child: const Icon(Icons.add),
@@ -195,7 +198,7 @@ class _TeacherListPageState extends State {
                                   child: Text(getInitial(teacher.fullName)),
                                 ),
 
-                                title: Text(teacher.fullName),
+                                title: Text(teacher.fullName ?? '-'),
 
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

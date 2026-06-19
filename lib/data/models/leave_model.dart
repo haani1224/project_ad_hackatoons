@@ -1,7 +1,7 @@
 class LeaveModel {
   final String? id;
   final String teacherId;
-  final String leaveType;
+  final String leaveTypeId;
   final DateTime startDate;
   final DateTime endDate;
   final int totalDays;
@@ -11,7 +11,7 @@ class LeaveModel {
   LeaveModel({
     this.id,
     required this.teacherId,
-    required this.leaveType,
+    required this.leaveTypeId,
     required this.startDate,
     required this.endDate,
     required this.totalDays,
@@ -19,23 +19,23 @@ class LeaveModel {
     this.status = "pending",
   });
 
-  factory LeaveModel.fromJson(Map<String, dynamic> json) {
+  factory LeaveModel.fromMap(Map<String, dynamic> json) {
     return LeaveModel(
       id: json['id'],
       teacherId: json['teacher_id'],
-      leaveType: json['leave_type'],
+      leaveTypeId: json['leave_type_id'] ?? '',
       startDate: DateTime.parse(json['start_date']),
       endDate: DateTime.parse(json['end_date']),
-      totalDays: json['total_days'],
+      totalDays: json['total_days'] ?? 0,
       reason: json['reason'],
-      status: json['status'],
+      status: json['status'] ?? 'pending',
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
       'teacher_id': teacherId,
-      'leave_type': leaveType,
+      'leave_type_id': leaveTypeId,
       'start_date': startDate.toIso8601String(),
       'end_date': endDate.toIso8601String(),
       'total_days': totalDays,

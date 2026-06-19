@@ -5,6 +5,24 @@ class TeacherRepository {
   final supabase = Supabase.instance.client;
 
   // GET ALL
+  Future<List<Map<String, dynamic>>> getAllLeaves() async {
+    final res = await supabase
+        .from('leave_requests')
+        .select('''
+          id,
+          start_date,
+          end_date,
+          total_days,
+          status,
+          reason,
+          teachers(full_name),
+          leave_types(name)
+        ''')
+        .order('start_date', ascending: false);
+
+    return List<Map<String, dynamic>>.from(res);
+  }
+
   Future<List<TeacherModel>> getTeachers() async {
     final res = await supabase.from('teachers').select();
 
@@ -20,26 +38,7 @@ class TeacherRepository {
     required TeacherModel teacher,
   }) async {
     try {
-      // // 1. Create Auth User
-      // final authRes = await supabase.auth.signUp(
-      //   email: email,
-      //   password: password,
-      // );
-
-      // final userId = authRes.user?.id;
-
-      // if (userId == null) {
-      //   return "Auth registration failed";
-      // }
-
-      // // 2. Insert into teachers table
-      // await supabase.from('teachers').insert({
-      //   ...teacher.toMap(),
-      //   'user_id': userId,
-      //   'role': 'teacher',
-      //   'status': 'pending', // 🔥 IMPORTANT for approval system
-      // });
-      // print("STEP 1");
+     
       final authRes = await supabase.auth.signUp(
         email: email,
         password: password,

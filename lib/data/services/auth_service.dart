@@ -30,7 +30,7 @@ class AuthService {
     try {
       final data = await supabase
           .from('teachers')
-          .select('role, status')
+          .select('role')
           .eq('user_id', userId)
           .single();
 

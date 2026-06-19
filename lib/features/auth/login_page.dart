@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:project_ad_hackatoons/features/teachers/teacher_list_page.dart';
+import 'package:project_ad_hackatoons/presentation/leave/apply_leave_page.dart';
+import 'package:project_ad_hackatoons/presentation/leave/leave_list_page.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/repositories/teacher_repository.dart';
 
 import '../teachers/add_teacher_page.dart';
-import '../dashboard/principal_dashboard.dart';
-import '../dashboard/teacher_dashboard.dart';
-import '../../presentation/principal/principal_approval_page.dart';
-
+// import '../dashboard/principal_dashboard.dart';
+// import '../dashboard/teacher_dashboard.dart';
+import '../../presentation/principal/leave_approval_page.dart';
+import '../../presentation/navigation/main_navigation_page.dart';
+import '../../presentation/auth/role_router.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -63,16 +66,14 @@ Future login() async {
   if (role == "teacher") {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => const TeacherDashboard(),
-      ),
+      MaterialPageRoute(builder: (_) => const RoleRouter()),
     );
   } 
   else if (role == "principal") {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => const TeacherListPage(),
+        builder: (_) => const RoleRouter(),
       ),
     );
   } 
