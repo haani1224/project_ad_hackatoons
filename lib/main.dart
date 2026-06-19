@@ -5,6 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/teacher/teacher_main_page.dart';
 // import 'screens/teacher/teacher_home.dart';
 // import 'screens/principal/principal_home.dart';
+import 'package:project_ad_hackatoons/features/auth/login_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/constants/supabase_constants.dart';
+import 'core/theme/app_theme.dart';
+// import 'features/teachers/teacher_list_page.dart';
+// import 'features/auth/login_page.dart';
+import '../../presentation/leave/leave_list_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,8 +33,9 @@ class GeniusAqilOS extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+
+      title: 'Teacher Management',
       debugShowCheckedModeBanner: false,
-      title: 'Teacher Reporting System',
       theme: ThemeData(
         colorScheme: ColorScheme.light(
           primary: primaryBlue,
