@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:project_ad_hackatoons/presentation/leave/apply_leave_page.dart';
+import '../../presentation/leave/apply_leave_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/services/auth_service.dart';
 import '../../features/teachers/teacher_list_page.dart';
-import '../principal/leave_approval_page.dart';
 import '../../features/auth/login_page.dart';
 
 class RoleRouter extends StatefulWidget {

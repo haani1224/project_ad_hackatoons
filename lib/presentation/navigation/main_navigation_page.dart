@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../features/teachers/teacher_list_page.dart';
 import '../leave/apply_leave_page.dart';
 import '../leave/leave_list_page.dart';
-import '../../presentation/principal/leave_approval_page.dart';
+// import '../../presentation/principal/leave_approval_page.dart';
 
 class MainNavigationPage extends StatefulWidget {
   const MainNavigationPage({super.key});

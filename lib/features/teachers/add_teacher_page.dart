@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../../data/models/teacher_model.dart';
-import '../../data/repositories/teacher_repository.dart';
+// import '../../../models/teacher_model.dart';
 import '../../core/theme/app_theme.dart';
 
 class AddTeacherPage extends StatefulWidget {
@@ -16,174 +14,111 @@ class AddTeacherPage extends StatefulWidget {
 
 class _AddTeacherPageState extends State {
   final _formKey = GlobalKey<FormState>();
-  final repo = TeacherRepository();
 
+  final supabase = Supabase.instance.client;
+
+  // ===== BASIC INFO =====
   final fullName = TextEditingController();
   final icNumber = TextEditingController();
   final phone = TextEditingController();
   final email = TextEditingController();
   final password = TextEditingController();
   final address = TextEditingController();
-  final postcode = TextEditingController();
+
+  // ===== EMERGENCY CONTACT =====
+  final emergencyName = TextEditingController();
+  final emergencyRelation = TextEditingController();
+  final emergencyPhone = TextEditingController();
 
   File? imageFile;
   final picker = ImagePicker();
 
-  String? gender;
-  String? maritalStatus;
-  String? selectedState;
-
   bool isLoading = false;
 
-  final List<String> states = [
-    "Johor","Kedah","Kelantan","Melaka","Negeri Sembilan",
-    "Pahang","Perak","Perlis","Pulau Pinang","Sabah","Sarawak",
-    "Selangor","Terengganu","Kuala Lumpur","Labuan","Putrajaya",
-  ];
-
-  String capitalize(String text) {
-    return text
-        .split(' ')
-        .map((e) => e.isEmpty
-            ? ''
-            : e[0].toUpperCase() + e.substring(1).toLowerCase())
-        .join(' ');
-  }
-
-  bool isValidEmail(String email) {
-    return RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
-  }
-
-  bool isValidIC(String ic) {
-    return RegExp(r'^\d{12}$').hasMatch(ic);
-  }
-
-  String? getDobFromIc(String ic) {
-    if (ic.length != 12) return null;
-
-    final yy = int.parse(ic.substring(0, 2));
-    final mm = ic.substring(2, 4);
-    final dd = ic.substring(4, 6);
-
-    final year = yy > 30 ? '19$yy' : '20$yy';
-    return '$year-$mm-$dd';
-  }
-
+  // ================= PICK IMAGE =================
   Future pickImage() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
-
     if (picked != null) {
-      setState(() {
-        imageFile = File(picked.path);
-      });
+      setState(() => imageFile = File(picked.path));
     }
-  } 
-
-  Future<String?> uploadImage() async {
-    if (imageFile == null) {
-      debugPrint("NO IMAGE SELECTED");
-      return null;
-    }
-
-    try {
-      final fileName =
-          'teacher_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      final storage = Supabase.instance.client.storage.from('teacher-avatars');
-
-      debugPrint("START UPLOAD: $fileName");
-
-      await storage.upload(fileName, imageFile!);
-
-      final url = storage.getPublicUrl(fileName);
-
-      debugPrint("UPLOAD SUCCESS: $url");
-
-      return url;
-    } catch (e) {
-      debugPrint("UPLOAD FAILED: $e");
-      return null;
-    }
-    
   }
 
+  // ================= UPLOAD =================
+  Future<String?> uploadImage(String path) async {
+    try {
+      final fileName = 'teacher_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      final storage = supabase.storage.from('teacher-docs');
+
+      await storage.upload(fileName, File(path));
+
+      return storage.getPublicUrl(fileName);
+    } catch (e) {
+      debugPrint("UPLOAD ERROR: $e");
+      return null;
+    }
+  }
+
+  // ================= SUBMIT =================
   Future submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => isLoading = true);
 
     try {
-      final imageUrl = await uploadImage();
-      // final imageUrl = null;
-
-      final teacher = TeacherModel(
-        fullName: capitalize(fullName.text),
-        icNumber: icNumber.text.trim(),
-        dob: getDobFromIc(icNumber.text.trim()),
-        gender: gender,
-        address: address.text.trim(),
-        postcode: postcode.text.trim(),
-        state: selectedState,
-        phone: phone.text.trim(),
-        email: email.text.trim(),
-        maritalStatus: maritalStatus,
-        avatarUrl: imageUrl,
-        status: "pending",
-      );
-
-      final error = await repo.registerTeacher(
+      // 1. CREATE AUTH USER (NO PASSWORD IN DB)
+      final authRes = await supabase.auth.signUp(
         email: email.text.trim(),
         password: password.text.trim(),
-        teacher: teacher,
       );
+
+      final userId = authRes.user?.id;
+
+      if (userId == null) {
+        throw Exception("Auth failed");
+      }
+
+      // 2. UPLOAD IMAGE (optional)
+      String? imageUrl;
+      if (imageFile != null) {
+        imageUrl = await uploadImage(imageFile!.path);
+      }
+
+      // 3. INSERT INTO teacher_records
+      await supabase.from('teacher_records').insert({
+        "ic_number": icNumber.text.trim(),
+        "user_id": userId,
+        "full_name": fullName.text.trim(),
+        "gender": null,
+        "date_of_birth": null,
+        "address": address.text.trim(),
+        "phone_number": phone.text.trim(),
+        "email": email.text.trim(),
+        "marital_status": null,
+
+        "emergency_contact_name": emergencyName.text.trim(),
+        "emergency_contact_relationship": emergencyRelation.text.trim(),
+        "emergency_contact_phone": emergencyPhone.text.trim(),
+
+        "doc_mykad_url": imageUrl,
+        "document_statuses": {
+          "profile": "pending"
+        }
+      });
 
       if (!mounted) return;
 
       setState(() => isLoading = false);
 
-      if (error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Registration submitted (pending approval)"),
+          content: Text("Registration submitted"),
           backgroundColor: Colors.green,
         ),
       );
 
       Navigator.pop(context, true);
-    }
-
-    on AuthException catch (e) {
-      setState(() => isLoading = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("AUTH ERROR: ${e.message}"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-
-    on PostgrestException catch (e) {
-      setState(() => isLoading = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("DATABASE ERROR: ${e.message}"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-
-    catch (e) {
+    } catch (e) {
       setState(() => isLoading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -203,7 +138,9 @@ class _AddTeacherPageState extends State {
     email.dispose();
     password.dispose();
     address.dispose();
-    postcode.dispose();
+    emergencyName.dispose();
+    emergencyRelation.dispose();
+    emergencyPhone.dispose();
     super.dispose();
   }
 
@@ -222,86 +159,48 @@ class _AddTeacherPageState extends State {
             children: [
 
               const Text(
-                "Register Teacher Account",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                "Teacher Registration Form",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 20),
+
+              GestureDetector(
+                onTap: pickImage,
+                child: CircleAvatar(
+                  radius: 50,
+                  backgroundImage:
+                      imageFile != null ? FileImage(imageFile!) : null,
+                  child: imageFile == null
+                      ? const Icon(Icons.camera_alt)
+                      : null,
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              Center(
-                child: GestureDetector(
-                  onTap: pickImage,
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundImage:
-                        imageFile != null ? FileImage(imageFile!) : null,
-                    child: imageFile == null
-                        ? const Icon(Icons.camera_alt, size: 30)
-                        : null,
-                  ),
-                ),
-              ),
+              TextFormField(controller: fullName, decoration: const InputDecoration(labelText: "Full Name")),
+              TextFormField(controller: icNumber, decoration: const InputDecoration(labelText: "IC Number")),
+              TextFormField(controller: phone, decoration: const InputDecoration(labelText: "Phone")),
+              TextFormField(controller: email, decoration: const InputDecoration(labelText: "Email")),
+              TextFormField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: "Password")),
+              TextFormField(controller: address, decoration: const InputDecoration(labelText: "Address")),
 
               const SizedBox(height: 20),
 
-              TextFormField(
-                controller: fullName,
-                decoration: const InputDecoration(
-                  labelText: "Full Name",
-                  border: OutlineInputBorder(),
-                ),
-              ),
+              const Text("Emergency Contact", style: TextStyle(fontWeight: FontWeight.bold)),
 
-              const SizedBox(height: 15),
+              TextFormField(controller: emergencyName, decoration: const InputDecoration(labelText: "Contact Name")),
+              TextFormField(controller: emergencyRelation, decoration: const InputDecoration(labelText: "Relationship")),
+              TextFormField(controller: emergencyPhone, decoration: const InputDecoration(labelText: "Contact Phone")),
 
-              TextFormField(
-                controller: icNumber,
-                keyboardType: TextInputType.number,
-                maxLength: 12,
-                decoration: const InputDecoration(
-                  labelText: "IC Number",
-                  border: OutlineInputBorder(),
-                ),
-              ),
+              const SizedBox(height: 25),
 
-              const SizedBox(height: 15),
-
-              TextFormField(
-                controller: email,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              TextFormField(
-                controller: password,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              SizedBox(
-                height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.gold,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: isLoading ? null : submit,
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("SUBMIT REGISTRATION"),
-                ),
+              ElevatedButton(
+                onPressed: isLoading ? null : submit,
+                child: isLoading
+                    ? const CircularProgressIndicator()
+                    : const Text("SUBMIT"),
               ),
             ],
           ),

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'principal/manage_user_page.dart';
+// import 'principal/manage_user_page.dart';
 import 'principal/principal_main_page.dart';
 import 'teacher/teacher_main_page.dart';
-import '../models/teacher_model.dart';
+// import '../models/teacher_model.dart';
 import '../services/duty_service.dart';
-import 'principal/principal_duty_page.dart';
-import 'teacher/teacher_duty_page.dart';
+// import 'principal/principal_duty_page.dart';
+// import 'teacher/teacher_duty_page.dart';
 import '../utils/constants.dart';
 
 class LoginPage extends StatefulWidget {

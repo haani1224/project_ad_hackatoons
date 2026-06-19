@@ -49,7 +49,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     final data = await reportService.getAllReports();
 
     setState(() {
-      reports = (data as List).cast<Map<String, dynamic>>();
+      reports = List<Map<String, dynamic>>.from(data);
       loading = false;
     });
   }
