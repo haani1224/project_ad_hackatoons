@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../../data/models/leave_model.dart';
-import '../../data/repositories/leave_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LeaveApprovalPage extends StatefulWidget {
   const LeaveApprovalPage({super.key});
@@ -11,13 +9,8 @@ class LeaveApprovalPage extends StatefulWidget {
       _LeaveApprovalPageState();
 }
 
-class _LeaveApprovalPageState
-    extends State<LeaveApprovalPage> {
-
-  final repo = LeaveRepository();
-
-  List<LeaveModel> leaves = [];
-
+class _LeaveApprovalPageState extends State<LeaveApprovalPage> {
+  List<Map<String, dynamic>> leaves = [];
   bool loading = true;
 
   @override
@@ -27,21 +20,41 @@ class _LeaveApprovalPageState
   }
 
   Future<void> loadLeaves() async {
-    final data = await repo.getAllLeaves();
+    final data = await Supabase.instance.client
+        .from('leaves')
+        .select('''
+          id,
+          start_date,
+          end_date,
+          total_days,
+          reason,
+          status,
+          teachers(full_name),
+          leave_types(name)
+        ''')
+        .order('created_at', ascending: false);
 
     setState(() {
-      leaves = data;
+      leaves = List<Map<String, dynamic>>.from(data);
       loading = false;
     });
   }
 
-  Future<void> approve(String id) async {
-    await repo.approveLeave(id);
+  Future approve(String id) async {
+    await Supabase.instance.client
+        .from('leaves')
+        .update({'status': 'approved'})
+        .eq('id', id);
+
     loadLeaves();
   }
 
-  Future<void> reject(String id) async {
-    await repo.rejectLeave(id);
+  Future reject(String id) async {
+    await Supabase.instance.client
+        .from('leaves')
+        .update({'status': 'rejected'})
+        .eq('id', id);
+
     loadLeaves();
   }
 
@@ -49,10 +62,8 @@ class _LeaveApprovalPageState
     switch (status.toLowerCase()) {
       case "approved":
         return Colors.green;
-
       case "rejected":
         return Colors.red;
-
       default:
         return Colors.orange;
     }
@@ -62,143 +73,92 @@ class _LeaveApprovalPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "Leave Approval Dashboard",
-        ),
+        title: const Text("Leave Approval"),
       ),
 
       body: loading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : leaves.isEmpty
-              ? const Center(
-                  child: Text(
-                    "No Leave Requests",
-                  ),
-                )
+              ? const Center(child: Text("No Leave Requests"))
               : ListView.builder(
                   itemCount: leaves.length,
-
                   itemBuilder: (context, index) {
-
                     final leave = leaves[index];
+
+                    final teacherName =
+                        leave['teachers']?['full_name'] ?? "Unknown";
+
+                    final leaveType =
+                        leave['leave_types']?['name'] ?? "Unknown";
 
                     return Card(
                       margin: const EdgeInsets.all(10),
-
                       child: Padding(
                         padding: const EdgeInsets.all(12),
-
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-
                             Text(
-                              "Teacher ID: ${leave.teacherId}",
+                              teacherName,
                               style: const TextStyle(
-                                fontWeight:
-                                    FontWeight.bold,
+                                fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
                             ),
 
                             const SizedBox(height: 5),
 
-                            Text(
-                              "Leave Type ID: ${leave.leaveTypeId}",
-                            ),
+                            Text("Leave Type: $leaveType"),
 
                             Text(
-                              "${leave.startDate.toString().split(' ')[0]}"
-                              " → "
-                              "${leave.endDate.toString().split(' ')[0]}",
+                              "${leave['start_date']} → ${leave['end_date']}",
                             ),
 
-                            Text(
-                              "Days: ${leave.totalDays}",
-                            ),
+                            Text("Days: ${leave['total_days']}"),
 
-                            if (leave.reason != null &&
-                                leave.reason!.isNotEmpty)
-                              Text(
-                                "Reason: ${leave.reason}",
-                              ),
+                            if (leave['reason'] != null &&
+                                leave['reason'].toString().isNotEmpty)
+                              Text("Reason: ${leave['reason']}"),
 
                             const SizedBox(height: 10),
 
                             Container(
-                              padding:
-                                  const EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 6,
                               ),
-
                               decoration: BoxDecoration(
-                                color: statusColor(
-                                  leave.status,
-                                ),
-                                borderRadius:
-                                    BorderRadius.circular(
-                                  20,
-                                ),
+                                color: statusColor(leave['status']),
+                                borderRadius: BorderRadius.circular(20),
                               ),
-
                               child: Text(
-                                leave.status
-                                    .toUpperCase(),
-                                style:
-                                    const TextStyle(
+                                leave['status'].toUpperCase(),
+                                style: const TextStyle(
                                   color: Colors.white,
-                                  fontWeight:
-                                      FontWeight.bold,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
 
                             const SizedBox(height: 10),
 
-                            if (leave.status ==
-                                "pending")
+                            if (leave['status'] == "pending")
                               Row(
                                 children: [
-
                                   ElevatedButton(
                                     onPressed: () =>
-                                        approve(
-                                      leave.id!,
-                                    ),
-                                    style:
-                                        ElevatedButton
-                                            .styleFrom(
-                                      backgroundColor:
-                                          Colors.green,
-                                    ),
-                                    child: const Text(
-                                      "Approve",
-                                    ),
+                                        approve(leave['id']),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green),
+                                    child: const Text("Approve"),
                                   ),
-
-                                  const SizedBox(
-                                    width: 10,
-                                  ),
-
+                                  const SizedBox(width: 10),
                                   ElevatedButton(
                                     onPressed: () =>
-                                        reject(
-                                      leave.id!,
-                                    ),
-                                    style:
-                                        ElevatedButton
-                                            .styleFrom(
-                                      backgroundColor:
-                                          Colors.red,
-                                    ),
-                                    child: const Text(
-                                      "Reject",
-                                    ),
+                                        reject(leave['id']),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red),
+                                    child: const Text("Reject"),
                                   ),
                                 ],
                               ),

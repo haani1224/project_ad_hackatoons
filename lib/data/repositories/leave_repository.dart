@@ -16,15 +16,35 @@ class LeaveRepository {
   }
 
   // 🟢 GET ALL LEAVES
-  Future<List<LeaveModel>> getAllLeaves() async {
-    final res = await supabase
-        .from('leave_requests')
-        .select()
-        .order('submitted_date', ascending: false);
+      Future<List<Map<String, dynamic>>> getAllLeaves() async {
+        final res = await supabase
+            .from('leaves')
+            .select('''
+              *,
+              teachers(full_name),
+              leave_types(name)
+            ''')
+            .order('created_at', ascending: false);
 
-    return (res as List)
-        .map((e) => LeaveModel.fromMap(e))
-        .toList();
+        return List<Map<String, dynamic>>.from(res);
+      }
+
+    Future<List<Map<String, dynamic>>> getLeavesForApproval() async {
+    final res = await Supabase.instance.client
+        .from('leaves')
+        .select('''
+          id,
+          start_date,
+          end_date,
+          total_days,
+          reason,
+          status,
+          teachers(full_name),
+          leave_types(name)
+        ''')
+        .order('created_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(res);
   }
 
   // 🟢 GET BY TEACHER

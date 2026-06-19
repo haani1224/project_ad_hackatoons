@@ -32,9 +32,6 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
     fetchLeaveTypes();
   }
 
-  // =======================
-  // FETCH LEAVE TYPES
-  // =======================
   Future<void> fetchLeaveTypes() async {
     try {
       final res = await Supabase.instance.client
@@ -51,18 +48,12 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
     }
   }
 
-  // =======================
-  // CALCULATE DAYS
-  // =======================
   int calculateDays() {
     if (startDate == null || endDate == null) return 0;
     return endDate!.difference(startDate!).inDays + 1;
   }
 
-  // =======================
-  // PICK START DATE
-  // =======================
-  Future<void> pickStartDate() async {
+  Future pickStartDate() async {
     final date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -75,10 +66,7 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
     }
   }
 
-  // =======================
-  // PICK END DATE
-  // =======================
-  Future<void> pickEndDate() async {
+  Future pickEndDate() async {
     final date = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -91,9 +79,6 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
     }
   }
 
-  // =======================
-  // SUBMIT LEAVE
-  // =======================
   Future<void> submit() async {
     if (selectedLeaveTypeId == null ||
         startDate == null ||
@@ -117,13 +102,15 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
         return;
       }
 
-      final teacherData = await Supabase.instance.client
+      // ✅ STEP 1: Get FULL teacher record (IMPORTANT FIX)
+      final teacherRes = await Supabase.instance.client
           .from('teachers')
-          .select('id')
+          .select()
           .eq('user_id', user.id)
           .single();
 
-      final teacherId = teacherData['id'];
+      final teacher = TeacherModel.fromMap(teacherRes);
+      final teacherId = teacherRes['id'];
 
       final leave = LeaveModel(
         teacherId: teacherId,
@@ -134,16 +121,13 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
         reason: reasonController.text,
       );
 
-      final teacher =
-          TeacherModel.fromMap(teacherData);
-
       final selectedLeave = leaveTypes.firstWhere(
-        (e) => e['id'] == selectedLeaveTypeId,
+        (e) => e['id'].toString() == selectedLeaveTypeId,
       );
 
-      final leaveTypeName =
-          selectedLeave['name'];
+      final leaveTypeName = selectedLeave['name'];
 
+      // validation
       final validationError =
           LeaveValidationService.validateLeave(
         teacher,
@@ -160,10 +144,10 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
             backgroundColor: Colors.red,
           ),
         );
-
         return;
       }
 
+      // submit
       final error = await repo.applyLeave(leave);
 
       if (!mounted) return;
@@ -172,7 +156,10 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
 
       if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
@@ -186,12 +173,13 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
 
       Navigator.pop(context, true);
     } catch (e) {
-      if (!mounted) return;
-
       setState(() => loading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(
+          content: Text("Error: $e"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -207,23 +195,16 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
     return Scaffold(
       appBar: AppBar(title: const Text("Apply Leave")),
 
-      drawer: const AppDrawer(
-        role: "teacher",
-      ),
+      drawer: const AppDrawer(role: "teacher"),
 
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-
-            // =======================
-            // LEAVE TYPE DROPDOWN
-            // =======================
             DropdownButtonFormField<String>(
               value: selectedLeaveTypeId,
               hint: const Text("Select Leave Type"),
-              items: leaveTypes
-                  .map<DropdownMenuItem<String>>((type) {
+              items: leaveTypes.map((type) {
                 return DropdownMenuItem<String>(
                   value: type['id'].toString(),
                   child: Text(type['name'].toString()),
@@ -238,7 +219,6 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
 
             const SizedBox(height: 12),
 
-            // START DATE
             ListTile(
               title: Text(startDate == null
                   ? "Select Start Date"
@@ -247,7 +227,6 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
               onTap: pickStartDate,
             ),
 
-            // END DATE
             ListTile(
               title: Text(endDate == null
                   ? "Select End Date"
@@ -279,7 +258,9 @@ class _ApplyLeavePageState extends State<ApplyLeavePage> {
               child: ElevatedButton(
                 onPressed: loading ? null : submit,
                 child: loading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const CircularProgressIndicator(
+                        color: Colors.white,
+                      )
                     : const Text("SUBMIT LEAVE"),
               ),
             ),
