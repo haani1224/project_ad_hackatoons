@@ -5,18 +5,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/teacher/teacher_main_page.dart';
 // import 'screens/teacher/teacher_home.dart';
 // import 'screens/principal/principal_home.dart';
-<<<<<<< Updated upstream
-import '../features/auth/login_page.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-=======
+// <<<<<<< Updated upstream
+// import '../features/auth/login_page.dart';
 // import 'package:supabase_flutter/supabase_flutter.dart';
->>>>>>> Stashed changes
-import 'core/constants/supabase_constants.dart';
-import 'core/theme/app_theme.dart';
-// import 'features/teachers/teacher_list_page.dart';
-//import 'features/auth/login_page.dart';
-import '../../presentation/leave/leave_list_page.dart';
-import '../models/teacher_model.dart';
+// =======
+// import 'package:supabase_flutter/supabase_flutter.dart';
+// >>>>>>> Stashed changes
+// import 'core/constants/supabase_constants.dart';
+// import 'core/theme/app_theme.dart';
+// // import 'features/teachers/teacher_list_page.dart';
+// //import 'features/auth/login_page.dart';
+// import '../../presentation/leave/leave_list_page.dart';
+// import '../models/teacher_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

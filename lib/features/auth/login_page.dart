@@ -1,172 +1,172 @@
-<<<<<<< Updated upstream
-import 'package:flutter/material.dart';
-// import '../../features/teachers/teacher_list_page.dart';
-// import '../../presentation/leave/apply_leave_page.dart';
-// import '../../presentation/leave/leave_list_page.dart';
-import '../../data/services/auth_service.dart';
-import '../../data/repositories/teacher_repository.dart';
-
-import '../teachers/add_teacher_page.dart';
-// import '../dashboard/principal_dashboard.dart';
-// import '../dashboard/teacher_dashboard.dart';
-// import '../../presentation/principal/leave_approval_page.dart';
-// import '../../presentation/navigation/main_navigation_page.dart';
-import '../../presentation/auth/role_router.dart';
-=======
+// <<<<<<< Updated upstream
 // import 'package:flutter/material.dart';
-// import 'package:project_ad_hackatoons/features/teachers/teacher_list_page.dart';
-// import 'package:project_ad_hackatoons/presentation/leave/apply_leave_page.dart';
-// import 'package:project_ad_hackatoons/presentation/leave/leave_list_page.dart';
+// // import '../../features/teachers/teacher_list_page.dart';
+// // import '../../presentation/leave/apply_leave_page.dart';
+// // import '../../presentation/leave/leave_list_page.dart';
 // import '../../data/services/auth_service.dart';
 // import '../../data/repositories/teacher_repository.dart';
 
 // import '../teachers/add_teacher_page.dart';
 // // import '../dashboard/principal_dashboard.dart';
 // // import '../dashboard/teacher_dashboard.dart';
-// import '../../presentation/principal/leave_approval_page.dart';
-// import '../../presentation/navigation/main_navigation_page.dart';
+// // import '../../presentation/principal/leave_approval_page.dart';
+// // import '../../presentation/navigation/main_navigation_page.dart';
 // import '../../presentation/auth/role_router.dart';
->>>>>>> Stashed changes
+// =======
+// // import 'package:flutter/material.dart';
+// // import 'package:project_ad_hackatoons/features/teachers/teacher_list_page.dart';
+// // import 'package:project_ad_hackatoons/presentation/leave/apply_leave_page.dart';
+// // import 'package:project_ad_hackatoons/presentation/leave/leave_list_page.dart';
+// // import '../../data/services/auth_service.dart';
+// // import '../../data/repositories/teacher_repository.dart';
 
-// class LoginPage extends StatefulWidget {
-//   const LoginPage({super.key});
+// // import '../teachers/add_teacher_page.dart';
+// // // import '../dashboard/principal_dashboard.dart';
+// // // import '../dashboard/teacher_dashboard.dart';
+// // import '../../presentation/principal/leave_approval_page.dart';
+// // import '../../presentation/navigation/main_navigation_page.dart';
+// // import '../../presentation/auth/role_router.dart';
+// >>>>>>> Stashed changes
 
-//   @override
-//   State createState() => _LoginPageState();
-// }
+// // class LoginPage extends StatefulWidget {
+// //   const LoginPage({super.key});
 
-// class _LoginPageState extends State {
-//   final email = TextEditingController();
-//   final password = TextEditingController();
+// //   @override
+// //   State createState() => _LoginPageState();
+// // }
 
-//   final auth = AuthService();
-//   final repo = TeacherRepository();
+// // class _LoginPageState extends State {
+// //   final email = TextEditingController();
+// //   final password = TextEditingController();
 
-//   bool loading = false;
+// //   final auth = AuthService();
+// //   final repo = TeacherRepository();
 
-// Future login() async {
-//   setState(() => loading = true);
+// //   bool loading = false;
 
-//   final user = await auth.login(
-//     email.text.trim(),
-//     password.text.trim(),
-//   );
+// // Future login() async {
+// //   setState(() => loading = true);
 
-//   if (!mounted) return;
+// //   final user = await auth.login(
+// //     email.text.trim(),
+// //     password.text.trim(),
+// //   );
 
-//   if (user == null) {
-//     setState(() => loading = false);
-//     ScaffoldMessenger.of(context).showSnackBar(
-//       const SnackBar(content: Text("Login failed")),
-//     );
-//     return;
-//   }
+// //   if (!mounted) return;
 
-//   // 🔥 GET ROLE + STATUS
-//   final role = await auth.getUserRole(user.id);
-//   final status = await auth.getUserStatus(user.id);
+// //   if (user == null) {
+// //     setState(() => loading = false);
+// //     ScaffoldMessenger.of(context).showSnackBar(
+// //       const SnackBar(content: Text("Login failed")),
+// //     );
+// //     return;
+// //   }
 
-//   setState(() => loading = false);
+// //   // 🔥 GET ROLE + STATUS
+// //   final role = await auth.getUserRole(user.id);
+// //   final status = await auth.getUserStatus(user.id);
 
-//   // ❗ BLOCK IF PENDING
-//   if (status == "pending") {
-//     ScaffoldMessenger.of(context).showSnackBar(
-//       const SnackBar(
-//         content: Text("Account pending approval"),
-//       ),
-//     );
-//     return;
-//   }
+// //   setState(() => loading = false);
 
-//   // 🔥 ROLE ROUTING
-//   if (role == "teacher") {
-//     Navigator.pushReplacement(
-//       context,
-//       MaterialPageRoute(builder: (_) => const RoleRouter()),
-//     );
-//   } 
-//   else if (role == "principal") {
-//     Navigator.pushReplacement(
-//       context,
-//       MaterialPageRoute(
-//         builder: (_) => const RoleRouter(),
-//       ),
-//     );
-//   } 
-//   else {
-//     ScaffoldMessenger.of(context).showSnackBar(
-//       const SnackBar(content: Text("Invalid role")),
-//     );
-//   }
-// }
+// //   // ❗ BLOCK IF PENDING
+// //   if (status == "pending") {
+// //     ScaffoldMessenger.of(context).showSnackBar(
+// //       const SnackBar(
+// //         content: Text("Account pending approval"),
+// //       ),
+// //     );
+// //     return;
+// //   }
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       body: Padding(
-//         padding: const EdgeInsets.all(20),
-//         child: Column(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: [
-//             const Text(
-//               "Teacher Management Login",
-//               style: TextStyle(
-//                 fontSize: 22,
-//                 fontWeight: FontWeight.bold,
-//               ),
-//             ),
+// //   // 🔥 ROLE ROUTING
+// //   if (role == "teacher") {
+// //     Navigator.pushReplacement(
+// //       context,
+// //       MaterialPageRoute(builder: (_) => const RoleRouter()),
+// //     );
+// //   } 
+// //   else if (role == "principal") {
+// //     Navigator.pushReplacement(
+// //       context,
+// //       MaterialPageRoute(
+// //         builder: (_) => const RoleRouter(),
+// //       ),
+// //     );
+// //   } 
+// //   else {
+// //     ScaffoldMessenger.of(context).showSnackBar(
+// //       const SnackBar(content: Text("Invalid role")),
+// //     );
+// //   }
+// // }
 
-//             const SizedBox(height: 30),
+// //   @override
+// //   Widget build(BuildContext context) {
+// //     return Scaffold(
+// //       body: Padding(
+// //         padding: const EdgeInsets.all(20),
+// //         child: Column(
+// //           mainAxisAlignment: MainAxisAlignment.center,
+// //           children: [
+// //             const Text(
+// //               "Teacher Management Login",
+// //               style: TextStyle(
+// //                 fontSize: 22,
+// //                 fontWeight: FontWeight.bold,
+// //               ),
+// //             ),
 
-//             TextField(
-//               controller: email,
-//               decoration: const InputDecoration(
-//                 labelText: "Email",
-//                 border: OutlineInputBorder(),
-//               ),
-//             ),
+// //             const SizedBox(height: 30),
 
-//             const SizedBox(height: 15),
+// //             TextField(
+// //               controller: email,
+// //               decoration: const InputDecoration(
+// //                 labelText: "Email",
+// //                 border: OutlineInputBorder(),
+// //               ),
+// //             ),
 
-//             TextField(
-//               controller: password,
-//               obscureText: true,
-//               decoration: const InputDecoration(
-//                 labelText: "Password",
-//                 border: OutlineInputBorder(),
-//               ),
-//             ),
+// //             const SizedBox(height: 15),
 
-//             const SizedBox(height: 25),
+// //             TextField(
+// //               controller: password,
+// //               obscureText: true,
+// //               decoration: const InputDecoration(
+// //                 labelText: "Password",
+// //                 border: OutlineInputBorder(),
+// //               ),
+// //             ),
 
-//             SizedBox(
-//               width: double.infinity,
-//               height: 50,
-//               child: ElevatedButton(
-//                 onPressed: loading ? null : login,
-//                 child: loading
-//                     ? const CircularProgressIndicator(
-//                         color: Colors.white,
-//                       )
-//                     : const Text("LOGIN"),
-//               ),
-//             ),
+// //             const SizedBox(height: 25),
 
-//             TextButton(
-//               onPressed: () {
-//                 Navigator.push(
-//                   context,
-//                   MaterialPageRoute(
-//                     builder: (_) => const AddTeacherPage(),
-//                   ),
-//                 );
-//               },
-//               child: const Text("New Teacher? Register here"),
-//             ),
+// //             SizedBox(
+// //               width: double.infinity,
+// //               height: 50,
+// //               child: ElevatedButton(
+// //                 onPressed: loading ? null : login,
+// //                 child: loading
+// //                     ? const CircularProgressIndicator(
+// //                         color: Colors.white,
+// //                       )
+// //                     : const Text("LOGIN"),
+// //               ),
+// //             ),
 
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
+// //             TextButton(
+// //               onPressed: () {
+// //                 Navigator.push(
+// //                   context,
+// //                   MaterialPageRoute(
+// //                     builder: (_) => const AddTeacherPage(),
+// //                   ),
+// //                 );
+// //               },
+// //               child: const Text("New Teacher? Register here"),
+// //             ),
+
+// //           ],
+// //         ),
+// //       ),
+// //     );
+// //   }
+// // }
