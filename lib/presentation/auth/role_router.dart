@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import 'package:flutter/material.dart';
 import '../../presentation/leave/apply_leave_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,76 +6,86 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/services/auth_service.dart';
 import '../../features/teachers/teacher_list_page.dart';
 import '../../features/auth/login_page.dart';
+=======
+// import 'package:flutter/material.dart';
+// import 'package:project_ad_hackatoons/presentation/leave/apply_leave_page.dart';
+// import 'package:supabase_flutter/supabase_flutter.dart';
 
-class RoleRouter extends StatefulWidget {
-  const RoleRouter({super.key});
+// import '../../data/services/auth_service.dart';
+// import '../../features/teachers/teacher_list_page.dart';
+// import '../principal/leave_approval_page.dart';
+// import '../../features/auth/login_page.dart';
+>>>>>>> Stashed changes
 
-  @override
-  State<RoleRouter> createState() => _RoleRouterState();
-}
+// class RoleRouter extends StatefulWidget {
+//   const RoleRouter({super.key});
 
-class _RoleRouterState extends State<RoleRouter> {
-  final auth = AuthService();
+//   @override
+//   State<RoleRouter> createState() => _RoleRouterState();
+// }
 
-  bool loading = true;
-  String? role;
-  String? status;
+// class _RoleRouterState extends State<RoleRouter> {
+//   final auth = AuthService();
 
-  @override
-  void initState() {
-    super.initState();
-    init();
-  }
+//   bool loading = true;
+//   String? role;
+//   String? status;
 
-  Future init() async {
-    final user = Supabase.instance.client.auth.currentUser;
+//   @override
+//   void initState() {
+//     super.initState();
+//     init();
+//   }
 
-    if (user == null) {
-      setState(() => loading = false);
-      return;
-    }
+//   Future init() async {
+//     final user = Supabase.instance.client.auth.currentUser;
 
-    role = await auth.getUserRole(user.id);
-    status = await auth.getUserStatus(user.id);
+//     if (user == null) {
+//       setState(() => loading = false);
+//       return;
+//     }
 
-    setState(() => loading = false);
-  }
+//     role = await auth.getUserRole(user.id);
+//     status = await auth.getUserStatus(user.id);
 
-  @override
-  Widget build(BuildContext context) {
-    if (loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
+//     setState(() => loading = false);
+//   }
 
-    final user = Supabase.instance.client.auth.currentUser;
+//   @override
+//   Widget build(BuildContext context) {
+//     if (loading) {
+//       return const Scaffold(
+//         body: Center(child: CircularProgressIndicator()),
+//       );
+//     }
 
-    if (user == null) {
-      return const LoginPage(); // fallback
-    }
+//     final user = Supabase.instance.client.auth.currentUser;
 
-    // ❌ BLOCK IF PENDING
-    if (status == "pending") {
-      return const Scaffold(
-        body: Center(
-          child: Text("Your account is pending approval"),
-        ),
-      );
-    }
+//     if (user == null) {
+//       return const LoginPage(); // fallback
+//     }
 
-    // 👨‍🏫 TEACHER DASHBOARD
-    if (role == "teacher") {
-      return const ApplyLeavePage();
-    }
+//     // ❌ BLOCK IF PENDING
+//     if (status == "pending") {
+//       return const Scaffold(
+//         body: Center(
+//           child: Text("Your account is pending approval"),
+//         ),
+//       );
+//     }
 
-    // 👨‍💼 PRINCIPAL DASHBOARD
-    if (role == "principal") {
-      return const TeacherListPage();
-    }
+//     // 👨‍🏫 TEACHER DASHBOARD
+//     if (role == "teacher") {
+//       return const ApplyLeavePage();
+//     }
 
-    return const Scaffold(
-      body: Center(child: Text("No role assigned")),
-    );
-  }
-}
+//     // 👨‍💼 PRINCIPAL DASHBOARD
+//     if (role == "principal") {
+//       return const TeacherListPage();
+//     }
+
+//     return const Scaffold(
+//       body: Center(child: Text("No role assigned")),
+//     );
+//   }
+// }
