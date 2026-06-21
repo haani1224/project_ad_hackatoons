@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../models/teacher_model.dart';
-import '../../services/teacher_record_service.dart';
-import '../../services/docstorage_service.dart';
+import '../../models/m1_record_model.dart';
+import '../../services/m1_record_service.dart';
+import '../../services/m1_docstorage_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../widgets/loading_widget.dart';
+import '../../utils/theme_constants.dart';
 
 class TeacherProfileScreen extends StatefulWidget {
   // const TeacherProfileScreen({super.key, required TeacherModel teacher});
 
-  final int teacherId;
+  final String userId;
 
   const TeacherProfileScreen({
     super.key,
-    required this.teacherId,
+    required this.userId,
   });
 
   @override
@@ -56,14 +57,40 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     _loadRecord();
   }
 
+  void _updateDobFromIc(String ic) {
+    final digits = ic.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (digits.length < 6) return;
+
+    try {
+      final yy = int.parse(digits.substring(0, 2));
+      final mm = int.parse(digits.substring(2, 4));
+      final dd = int.parse(digits.substring(4, 6));
+
+      final currentYear = DateTime.now().year % 100;
+
+      final fullYear = yy <= currentYear
+          ? 2000 + yy
+          : 1900 + yy;
+
+      final dob = DateTime(fullYear, mm, dd);
+
+      setState(() {
+        _dob = dob;
+      });
+    } catch (_) {
+      // invalid IC format
+    }
+  }
+
   Future<void> _loadRecord() async {
     try {
       print('========== START LOAD ==========');
 
-      print('teacherId = ${widget.teacherId}');
+      print('userId = ${widget.userId}');
 
       final record =
-          await _svc.getMyRecord(widget.teacherId);
+          await _svc.getMyRecord(widget.userId);
 
       print('Record loaded');
       print(record);
@@ -114,11 +141,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   }
 
   Future<void> _save() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
+    final userId = Supabase.instance.client.auth.currentUser!.id;
+    if (userId == null) {
       throw Exception("User not logged in");
     }
-    final uid = user.id;
+    final uid = userId;
     final resolvedDob = _dob ?? DateTime(1990, 1, 1);
 
     // C. Check if record already exists
@@ -171,6 +198,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Profile'),
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           if (!_editing)
             IconButton(
@@ -202,10 +232,14 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 12),
               CustomTextField(
-                  label: 'IC Number',
-                  controller: _icCtrl,
-                  readOnly: !_editing,
-                  validator: (v) => v!.isEmpty ? 'Required' : null),
+                label: 'IC Number',
+                controller: _icCtrl,
+                readOnly: !_editing,
+                validator: (v) => v!.isEmpty ? 'Required' : null,
+                onChanged: (value) {
+                  _updateDobFromIc(value);
+                },
+              ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: _gender,
@@ -381,7 +415,43 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                 IconButton.filledTonal(
                   icon: Icon(_editingDocs ? Icons.check : Icons.edit),
                   tooltip: _editingDocs ? 'Done Managing' : 'Manage Documents',
-                  onPressed: () => setState(() => _editingDocs = !_editingDocs),
+                  onPressed: () {
+                    // User is trying to close document editing mode
+                    if (_editingDocs) {
+                      final missingDocs = <String>[];
+
+                        if (_myKadPath == null) missingDocs.add('MyKad');
+                        if (_passportPath == null) missingDocs.add('Passport Photo');
+                        if (_resumePath == null) missingDocs.add('Resume');
+                        if (_academicPath == null) missingDocs.add('Academic Certificate');
+                        // if (_medicalPath == null) missingDocs.add('Medical Report');
+                        if (_bankPath == null) missingDocs.add('Bank Statement');
+
+                        if (missingDocs.isNotEmpty) {
+                          showDialog(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: const Text('Documents Missing'),
+                              content: Text(
+                                'Please upload the following required documents:\n\n'
+                                '${missingDocs.join('\n')}\n\n'
+                                'Note: Medical Check Up Report is required when available.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            ),
+                          );
+                          return;
+                        }
+                    }
+                    setState(() {
+                      _editingDocs = !_editingDocs;
+                    });
+                  },
                   style: IconButton.styleFrom(
                     backgroundColor: _editingDocs 
                         ? Colors.green.withOpacity(0.2) 
