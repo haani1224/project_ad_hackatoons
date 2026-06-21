@@ -63,7 +63,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
       print('teacherId = ${widget.teacherId}');
 
       final record =
-          await _svc.getMyRecord(widget.teacherId.toString());
+          await _svc.getMyRecord(widget.teacherId);
 
       print('Record loaded');
       print(record);
@@ -73,6 +73,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
           _record = record;
           _loading = false;
         });
+        if (record != null) {
+          _populate(record); // 👈 IMPORTANT FIX
+        }
       }
 
       print('========== LOAD COMPLETE ==========');
@@ -111,7 +114,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   }
 
   Future<void> _save() async {
-    final uid = Supabase.instance.client.auth.currentUser!.id;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception("User not logged in");
+    }
+    final uid = user.id;
     final resolvedDob = _dob ?? DateTime(1990, 1, 1);
 
     // C. Check if record already exists
@@ -419,7 +426,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   Widget _docTile(String label, String? currentPath, Function(String?) onUploaded, String type) {
     final uid = Supabase.instance.client.auth.currentUser?.id;
 
-    final docData = _record?.documentStatuses[type] as Map<String, dynamic>?;
+    final docData = (_record?.documentStatuses ?? {})[type] as Map<String, dynamic>?;
     final String status = docData?['status'] ?? 'pending';
     final String? reason = docData?['reason'];
 
@@ -450,39 +457,108 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // if (currentPath != null)
+              //   IconButton(
+              //     icon: const Icon(Icons.open_in_new),
+              //     tooltip: 'View Document',
+              //     onPressed: () async {
+              //       print("VIEW BUTTON CLICKED");
+              //       final urlString = await _docStorageSvc.getDownloadUrl(currentPath);
+              //       final Uri url = Uri.parse(urlString);
+              //       await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+              //     },
+              //   ),
               if (currentPath != null)
                 IconButton(
                   icon: const Icon(Icons.open_in_new),
                   tooltip: 'View Document',
                   onPressed: () async {
-                    final urlString = await _docStorageSvc.getDownloadUrl(currentPath);
-                    final Uri url = Uri.parse(urlString);
-                    await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                    print("VIEW BUTTON CLICKED");
+                    // FIX #14: Handle getDownloadUrl and launchUrl failures gracefully
+                    try {
+                      final urlString = await _docStorageSvc.getDownloadUrl(currentPath);
+                      final Uri url = Uri.parse(urlString);
+                      final launched = await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                      if (!launched && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Could not open document. No app available to handle this file.')),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to open document: $e')),
+                        );
+                      }
+                    }
                   },
                 ),
+              // if (_editingDocs && status != 'approved')
+              //   IconButton(
+              //     icon: Icon(currentPath == null ? Icons.upload_file : Icons.published_with_changes),
+              //     onPressed: () async {
+              //       print("UPLOAD1 BUTTON CLICKED");
+              //       if (uid != null) {
+              //         final path = await _docStorageSvc.uploadTeacherDocument(
+              //           userId: uid, 
+              //           docType: type,
+              //           oldPath: currentPath, 
+              //         );
+                      
+              //         if (path != null && mounted) {
+              //           setState(() { onUploaded(path); });
+                        
+              //           try {
+              //             await _svc.updateTeacherDocumentPath(
+              //               userId: uid,
+              //               docType: type,
+              //               filePath: path,
+              //             );
+                          
+              //             await _loadRecord(); 
+                          
+              //             if (mounted) {
+              //               ScaffoldMessenger.of(context).showSnackBar(
+              //                 const SnackBar(content: Text('File uploaded and linked successfully!'))
+              //               );
+              //             }
+              //           } catch (e) {
+              //             if (mounted) {
+              //               ScaffoldMessenger.of(context).showSnackBar(
+              //                 SnackBar(content: Text('Failed to link file to profile table: $e'))
+              //               );
+              //             }
+              //           }
+              //         }
+              //       }
+              //     },
+              //   ),
               if (_editingDocs && status != 'approved')
                 IconButton(
                   icon: Icon(currentPath == null ? Icons.upload_file : Icons.published_with_changes),
                   onPressed: () async {
+                    print("UPLOAD1 BUTTON CLICKED");
                     if (uid != null) {
                       final path = await _docStorageSvc.uploadTeacherDocument(
-                        userId: uid, 
+                        userId: uid,
                         docType: type,
-                        oldPath: currentPath, 
+                        oldPath: currentPath,
                       );
-                      
+
                       if (path != null && mounted) {
-                        setState(() { onUploaded(path); });
-                        
+                        // FIX #13: Update DB first, then update UI only on success
                         try {
                           await _svc.updateTeacherDocumentPath(
                             userId: uid,
                             docType: type,
                             filePath: path,
                           );
-                          
-                          await _loadRecord(); 
-                          
+
+                          // DB write succeeded — now safe to update local state
+                          setState(() { onUploaded(path); });
+
+                          await _loadRecord();
+
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('File uploaded and linked successfully!'))
@@ -499,11 +575,59 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     }
                   },
                 ),
+              // if (_editingDocs && currentPath != null && status != 'approved')
+              //   IconButton(
+              //     icon: const Icon(Icons.delete_forever, color: Colors.red),
+              //     tooltip: 'Delete Document',
+              //     onPressed: () async {
+              //       print("UPLOAD2 BUTTON CLICKED");
+              //       final confirmed = await showDialog<bool>(
+              //         context: context,
+              //         builder: (context) => AlertDialog(
+              //           title: const Text('Delete Document?'),
+              //           content: const Text('This will permanently remove the file from storage.'),
+              //           actions: [
+              //             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+              //             TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+              //           ],
+              //         ),
+              //       );
+
+              //       if (confirmed == true && uid != null) {
+              //         // 1. Delete physical storage file
+              //         await _docStorageSvc.deleteTeacherDocument(path: currentPath);
+                      
+              //         // 2. Wipe the local UI tracking variables immediately
+              //         setState(() { 
+              //           onUploaded(null); 
+              //         });
+                      
+              //         // 3. Clear out the database file path column to null
+              //         await _svc.updateTeacherDocumentPath(
+              //           userId: uid, 
+              //           docType: type, 
+              //           filePath: null, // 🟢 Set explicitly to null instead of empty string
+              //         );
+
+              //         // 4. Update or clear out the approval status object entirely to null
+              //         await _svc.updateSingleDocStatus(
+              //           icNumber: _icCtrl.text.trim(),
+              //           docType: type,
+              //           status: null, // 🟢 Set to null directly
+              //           reason: null,
+              //         );
+
+              //         // 5. Fresh fetch from database to sync all states
+              //         await _loadRecord();
+              //       }
+              //     },
+              //   ),
               if (_editingDocs && currentPath != null && status != 'approved')
                 IconButton(
                   icon: const Icon(Icons.delete_forever, color: Colors.red),
                   tooltip: 'Delete Document',
                   onPressed: () async {
+                    print("UPLOAD2 BUTTON CLICKED");
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
@@ -517,30 +641,50 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     );
 
                     if (confirmed == true && uid != null) {
-                      // 1. Delete physical storage file
-                      await _docStorageSvc.deleteTeacherDocument(path: currentPath);
-                      
-                      // 2. Wipe the local UI tracking variables immediately
-                      setState(() { 
-                        onUploaded(null); 
+                      // FIX #11: Check storage deletion succeeded before touching the database
+                      try {
+                        await _docStorageSvc.deleteTeacherDocument(path: currentPath);
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Storage deletion failed — file not removed: $e')),
+                          );
+                        }
+                        return; // Abort — don't wipe DB path if the file wasn't actually deleted
+                      }
+
+                      // FIX #12: Guard against empty IC before calling updateSingleDocStatus
+                      final ic = _icCtrl.text.trim();
+                      if (ic.isEmpty) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Cannot update document status: IC number is missing.')),
+                          );
+                        }
+                        return;
+                      }
+
+                      // Storage confirmed deleted — now wipe local UI state
+                      setState(() {
+                        onUploaded(null);
                       });
-                      
-                      // 3. Clear out the database file path column to null
+
+                      // Clear DB path
                       await _svc.updateTeacherDocumentPath(
-                        userId: uid, 
-                        docType: type, 
-                        filePath: null, // 🟢 Set explicitly to null instead of empty string
+                        userId: uid,
+                        docType: type,
+                        filePath: null,
                       );
 
-                      // 4. Update or clear out the approval status object entirely to null
+                      // Clear approval status
                       await _svc.updateSingleDocStatus(
-                        icNumber: _icCtrl.text.trim(),
+                        icNumber: ic,
                         docType: type,
-                        status: null, // 🟢 Set to null directly
+                        status: null,
                         reason: null,
                       );
 
-                      // 5. Fresh fetch from database to sync all states
+                      // Sync from DB
                       await _loadRecord();
                     }
                   },

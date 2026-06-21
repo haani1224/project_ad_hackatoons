@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
+import '../login_page.dart';
 import 'manage_user_page.dart';
 import 'principal_duty_page.dart';
 import 'principal_training_screen.dart';
@@ -13,6 +15,7 @@ const Color _lightBg = Color(0xFFF0F4FA);
 
 class PrincipalMainPage extends StatelessWidget {
   const PrincipalMainPage({super.key});
+  
 
   // Returns day & date in English
   String _getTodayDate() {
@@ -25,6 +28,44 @@ class PrincipalMainPage extends StatelessWidget {
     return '${days[now.weekday % 7]}, ${now.day} ${months[now.month - 1]} ${now.year}';
   }
 
+  void _showMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Logout'),
+                onTap: () async {
+                  final nav = Navigator.of(context);
+
+                  Navigator.pop(context);
+
+                  await AuthService().logout();
+
+                  nav.pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                    (route) => false,
+                  );
+                },
+              ),
+
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,7 +73,7 @@ class PrincipalMainPage extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           // ── Header ──────────────────────────────────────────
-          SliverToBoxAdapter(child: _buildHeader()),
+          SliverToBoxAdapter(child: _buildHeader(context)),
 
           // ── Section label ────────────────────────────────────
           const SliverPadding(
@@ -140,7 +181,7 @@ class PrincipalMainPage extends StatelessWidget {
   }
 
   // ── Gradient header with logo + welcome card ──────────────
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Stack(
       children: [
         // Gradient background
@@ -226,8 +267,10 @@ class PrincipalMainPage extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       _HeaderButton(
-                        icon: Icons.settings_outlined,
-                        onTap: () {},
+                        icon: Icons.menu_rounded,
+                        onTap: () {
+                          _showMenu(context);
+                        },
                       ),
                     ],
                   ),
