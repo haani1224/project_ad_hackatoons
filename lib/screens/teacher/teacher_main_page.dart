@@ -181,7 +181,7 @@ class TeacherMainPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                       image: const DecorationImage(
                         image: AssetImage(
-                          'assets/images/LOGO TADIKA AQIL MIQAIL.jpg',
+                          'assets/LOGO TADIKA AQIL MIQAIL.jpg',
                         ),
                         fit: BoxFit.cover,
                       ),

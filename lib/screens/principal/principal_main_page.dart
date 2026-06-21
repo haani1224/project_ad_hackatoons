@@ -179,7 +179,7 @@ class PrincipalMainPage extends StatelessWidget {
                         padding: const EdgeInsets.all(3),
                         child: ClipOval(
                           child: Image.asset(
-                            'assets/images/LOGO TADIKA AQIL MIQAIL.jpg',
+                            'assets/LOGO TADIKA AQIL MIQAIL.jpg',
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Container(
                               color: _gold.withOpacity(0.2),
