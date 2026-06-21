@@ -1,38 +1,66 @@
-// import 'package:flutter/material.dart';
-// import '../models/attendance.dart';
+import 'package:flutter/material.dart';
+import '../models/attendance.dart'; // Pastikan path ke model AttendanceLog sudah benar
 
-// class AttendanceProvider with ChangeNotifier {
-//   List<Attendance> _logs = [];
-//   bool _isLoaded = false;
+class AttendanceService with ChangeNotifier {
+  List<AttendanceLog> _logs = [];
+  bool _isLoaded = false;
 
-//   List<Attendance> get logs => _logs;
-//   bool get isLoaded => _isLoaded;
-//   bool get hasClockedInToday {
-//     if (_logs.isEmpty) return false;
-//     final today = DateTime.now();
-//     final lastLogDate = DateTime.parse(_logs.first.date);
-//     return lastLogDate.year == today.year &&
-//         lastLogDate.month == today.month &&
-//         lastLogDate.day == today.day;
-//   }
-//   int get totalLateThisMonth {
-//     return _logs.where((log) => log.isLate).length;
-//   }
+  List<AttendanceLog> get logs => _logs;
+  bool get isLoaded => _isLoaded;
 
-//   AttendanceProvider() {
-//     _loadInitialData();
-//   }
+  // 🟢 Otomatis menghitung total log yang statusnya 'Late'
+  int get totalLateThisMonth {
+    return _logs.where((log) => log.status.toLowerCase() == 'late').length;
+  }
 
-//   void _loadInitialData() {
-//     Future.delayed(const Duration(seconds: 1), () {
-//       _logs = [
-//         Attendance(id: '1', date: '18 June 2026', day: 'Monday', arrived: '07:20', left: '17:00', isLate: false, status: 'Present'),
-//         Attendance(id: '2', date: '17 June 2026', day: 'Sunday', arrived: '07:45', left: '17:15', isLate: true, status: 'Late'),
-//         Attendance(id: '3', date: '16 June 2026', day: 'Saturday', arrived: '07:15', left: '17:00', isLate: false, status: 'Present'),
-//         Attendance(id: '4', date: '15 June 2026', day: 'Friday', arrived: '08:00', left: '17:30', isLate: true, status: 'Late'),
-//       ];
-//       _isLoaded = true;
-//       notifyListeners();
-//     });
-//   }
-// }
+  AttendanceService() {
+    _loadInitialData();
+  }
+
+  void _loadInitialData() {
+    Future.delayed(const Duration(seconds: 1), () {
+      _logs = [
+        AttendanceLog(
+          id: '101',
+          date: '21 June 2026',
+          status: 'Present',
+          checkInTime: '07:15',
+          checkOutTime: '16:00',
+        ),
+        AttendanceLog(
+          id: '102',
+          date: '20 June 2026',
+          status: 'Late',
+          checkInTime: '08:05',
+          checkOutTime: '16:00',
+        ),
+        AttendanceLog(
+          id: '103',
+          date: '19 June 2026',
+          status: 'Present',
+          checkInTime: '07:22',
+          checkOutTime: '16:15',
+        ),
+        AttendanceLog(
+          id: '104',
+          date: '18 June 2026',
+          status: 'Late',
+          checkInTime: '07:45',
+          checkOutTime: '16:00',
+        ),
+        AttendanceLog(
+          id: '105',
+          date: '17 June 2026',
+          status: 'Present',
+          checkInTime: '07:10',
+          checkOutTime: '16:00',
+        ),
+      ];
+      _isLoaded = true;
+      
+      notifyListeners(); 
+    });
+  }
+
+  
+}

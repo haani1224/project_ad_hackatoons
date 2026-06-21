@@ -1,31 +1,42 @@
-class Attendance {
+class AttendanceLog {
   final String id;
   final String date;
-  final String day;
-  final String arrived;
-  final String left;
-  final bool isLate;
   final String status;
+  final String checkInTime;
+  final String checkOutTime;
 
-  Attendance({
+  AttendanceLog({
     required this.id,
     required this.date,
-    required this.day,
-    required this.arrived,
-    required this.left,
-    required this.isLate,
     required this.status,
+    required this.checkInTime,
+    required this.checkOutTime,
   });
 
-  factory Attendance.fromJson(Map<String, dynamic> json) {
-    return Attendance(
-      id: json['id'] as String,
-      date: json['date'] as String,
-      day: json['day'] as String,
-      arrived: json['arrived'] as String,
-      left: json['left'] as String,
-      isLate: json['isLate'] as bool,
-      status: json['status'] as String,
+  // 🟢 FUNGSI BARU BUAT NANGKEP DATA DARI SUPABASE
+  factory AttendanceLog.fromMap(Map<String, dynamic> map) {
+    return AttendanceLog(
+      // Kalau id-nya int dari Supabase, toString() akan amanin
+      id: map['id']?.toString() ?? '',
+      
+      // Ambil tanggal, misalnya dari kolom 'date' atau 'created_at'
+      date: map['date'] ?? map['created_at']?.toString().substring(0, 10) ?? '',
+      
+      // Ambil status, kalau kosong defaultnya 'Present'
+      status: map['status'] ?? 'Present',
+      
+      // Ambil jam masuk & keluar
+      checkInTime: map['check_in_time'] ?? '--:--',
+      checkOutTime: map['check_out_time'] ?? '--:--',
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'date': date,
+      'status': status,
+      'check_in_time': checkInTime,
+      'check_out_time': checkOutTime,
+    };
   }
 }

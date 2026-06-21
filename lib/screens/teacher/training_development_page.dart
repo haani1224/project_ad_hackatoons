@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/training_provider.dart';
+import '../../services/training_service.dart';
+
 
 class TrainingDevelopmentPage extends StatelessWidget {
   const TrainingDevelopmentPage({super.key});
@@ -13,8 +14,7 @@ class TrainingDevelopmentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Pakai context.watch biar kodingan lebih bersih
-    final provider = context.watch<TrainingProvider>();
+    final TrainingService provider = context.watch<TrainingService>();
 
     if (!provider.isLoaded) {
       return const Scaffold(
@@ -186,7 +186,7 @@ class TrainingDevelopmentPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard(TrainingProvider provider) {
+  Widget _buildSummaryCard(TrainingService provider) {
     final bool isMet = provider.hasMetMinimum;
     final Color mainColor = isMet ? Colors.green.shade600 : Colors.amber.shade600;
     final Color bgColor = isMet ? Colors.green.shade50 : Colors.amber.shade50;
@@ -255,7 +255,7 @@ class TrainingDevelopmentPage extends StatelessWidget {
     );
   }
 
-  Widget _buildChecklistContainer(TrainingProvider provider, dynamic kpi) {
+  Widget _buildChecklistContainer(TrainingService provider, dynamic kpi) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,

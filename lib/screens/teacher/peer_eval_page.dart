@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/peer_eval_provider.dart';
+import '../../services/peer_eval_service.dart';
 
 class PeerEvaluationPage extends StatelessWidget {
   const PeerEvaluationPage({super.key});

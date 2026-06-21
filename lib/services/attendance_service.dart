@@ -7,7 +7,7 @@ class AttendanceService {
     {"id": "3", "date": "10", "day": "Wed", "arrived": "07:20", "left": "17:00", "isLate": false, "status": "Present"},
   ];
 
-  Future<List<Attendance>> fetchAttendanceLogs(String teacherId, String monthYear) async {
+  Future<List<AttendanceLog>> fetchAttendanceLogs(String teacherId, String monthYear) async {
     await Future.delayed(const Duration(milliseconds: 500));
     return _mockDatabase.map((json) => Attendance.fromJson(json)).toList();
   }

@@ -144,3 +144,4 @@ class TrainingRecord {
   bool get isRejected => status == 'rejected';
   bool get isCompleted => status == 'completed';
 }
+

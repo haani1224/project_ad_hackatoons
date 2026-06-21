@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/classroom_provider.dart';
+import '../../services/classroom_service.dart';
 
 class ClassroomManagementPage extends StatelessWidget {
   const ClassroomManagementPage({super.key});

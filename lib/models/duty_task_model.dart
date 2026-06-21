@@ -15,7 +15,7 @@ class DutyTask {
   final List<String> checklist;
   final ProofMode proofMode;
 
-  final String? singleProofImageUrl;
+  String? singleProofImageUrl;
   final Map<int, String> checklistProofImages;
 
   DutyTask({
@@ -29,7 +29,7 @@ class DutyTask {
     required this.time,
     required this.proofMode,
     this.checklist = const [],
-    this.singleProofImageUrl,
+    this.singleProofImageUrl = '',
     this.checklistProofImages = const {},
   });
 
