@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/training_model.dart';
+import '../models/m4_training_model.dart';
 
 class TrainingService {
   final _client = Supabase.instance.client;

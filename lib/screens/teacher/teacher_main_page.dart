@@ -3,10 +3,10 @@ import '../../services/auth_service.dart';
 import '../login_page.dart';
 import '../../models/teacher_model.dart';
 import '../../models/m1_record_model.dart';
-import '../../models/training_model.dart';
+import '../../models/m4_training_model.dart';
 import 'teacher_duty_page.dart';
 import 'm1_trecord_screen.dart';
-import 'teacher_training_screen.dart';
+import 'm4_ttraining_screen.dart';
 import 'teacher_home.dart';
 
 class TeacherMainPage extends StatelessWidget {
