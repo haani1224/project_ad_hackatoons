@@ -4,15 +4,11 @@ import '../login_page.dart';
 import 'manage_user_page.dart';
 import 'principal_duty_page.dart';
 import 'principal_training_screen.dart';
-import 'principal_records_screen.dart';
+import 'm1_precords_screen.dart';
 import 'principal_dashboard.dart';
 import 'principal_leave_approval.dart';
+import '../../utils/theme_constants.dart';
 
-const Color _navy = Color(0xFF2E4365);
-const Color _navyDark = Color(0xFF1A2F50);
-const Color _navyLight = Color(0xFF3A5A8A);
-const Color _gold = Color(0xFFE59D2C);
-const Color _lightBg = Color(0xFFF0F4FA);
 
 class PrincipalMainPage extends StatelessWidget {
   const PrincipalMainPage({super.key});
@@ -70,7 +66,7 @@ class PrincipalMainPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _lightBg,
+      backgroundColor: lightBg,
       body: CustomScrollView(
         slivers: [
           // ── Header ──────────────────────────────────────────
@@ -144,8 +140,8 @@ class PrincipalMainPage extends StatelessWidget {
                   ),
                 ),
                 _ModuleCard(
-                  title: 'Records',
-                  subtitle: 'Files & documents',
+                  title: "Teacher's Records",
+                  subtitle: "Info & documents",
                   icon: Icons.folder_rounded,
                   color: Color(0xFF0EA5E9),
                   onTap: () => Navigator.push(
@@ -197,7 +193,11 @@ class PrincipalMainPage extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [_navyDark, _navy, _navyLight],
+              colors: [
+                navyDark,
+                Color(0xFF274060),
+                navyLight,
+              ],
             ),
           ),
           child: SafeArea(
@@ -230,8 +230,8 @@ class PrincipalMainPage extends StatelessWidget {
                             'assets/LOGO TADIKA AQIL MIQAIL.jpg',
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Container(
-                              color: _gold.withOpacity(0.2),
-                              child: const Icon(Icons.school, color: _gold, size: 30),
+                              color: gold.withOpacity(0.2),
+                              child: const Icon(Icons.school, color: gold, size: 30),
                             ),
                           ),
                         ),
@@ -246,7 +246,7 @@ class PrincipalMainPage extends StatelessWidget {
                             const Text(
                               'TADIKA',
                               style: TextStyle(
-                                color: _gold,
+                                color: gold,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 3,
@@ -330,10 +330,10 @@ class PrincipalMainPage extends StatelessWidget {
                                   vertical: 5,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: _gold.withOpacity(0.18),
+                                  color: gold.withOpacity(0.18),
                                   borderRadius: BorderRadius.circular(30),
                                   border: Border.all(
-                                    color: _gold.withOpacity(0.45),
+                                    color: gold.withOpacity(0.45),
                                   ),
                                 ),
                                 child: Row(
@@ -341,14 +341,14 @@ class PrincipalMainPage extends StatelessWidget {
                                   children: [
                                     const Icon(
                                       Icons.calendar_today_rounded,
-                                      color: _gold,
+                                      color: gold,
                                       size: 12,
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
                                       _getTodayDate(),
                                       style: const TextStyle(
-                                        color: _gold,
+                                        color: gold,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -379,7 +379,7 @@ class PrincipalMainPage extends StatelessWidget {
           right: 0,
           child: ClipPath(
             clipper: _ScoopClipper(),
-            child: Container(height: 36, color: _lightBg),
+            child: Container(height: 36, color: lightBg),
           ),
         ),
       ],
@@ -518,7 +518,7 @@ class _ModuleCard extends StatelessWidget {
                           style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15.5,
-                            color: _navyDark,
+                            color: navyDark,
                             letterSpacing: 0.1,
                           ),
                         ),

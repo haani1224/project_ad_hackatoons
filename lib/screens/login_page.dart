@@ -3,6 +3,7 @@ import 'principal/principal_main_page.dart';
 import 'teacher/teacher_main_page.dart';
 import '../services/auth_service.dart';
 import '../screens/register_page.dart';
+import '../services/m1_record_service.dart';
 import '../utils/constants.dart';
 
 class LoginPage extends StatefulWidget {
@@ -45,10 +46,14 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(builder: (_) => const PrincipalMainPage()),
         );
       } else {
+        final record = await TeacherRecordService().getMyRecord(teacher.authId);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => TeacherMainPage(teacher: teacher),
+            builder: (_) => TeacherMainPage(
+              teacher: teacher,
+              record: record, // <- you must pass this
+            ),
           ),
         );
       }
