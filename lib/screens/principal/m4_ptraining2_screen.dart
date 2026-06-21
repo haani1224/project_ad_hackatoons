@@ -3,8 +3,9 @@ import 'package:intl/intl.dart';
 import '../../utils/constants.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
-import '../../models/training_model.dart';          // Added missing training model import
-import '../../services/m4_training_service.dart'; // 🟢 FIXED: Point to split service file
+import '../../models/m4_training_model.dart';         
+import '../../services/m4_training_service.dart';
+import '../../utils/theme_constants.dart';
 
 class AddTrainingOptionScreen extends StatefulWidget {
   const AddTrainingOptionScreen({super.key});
@@ -77,7 +78,13 @@ class _AddTrainingOptionScreenState extends State<AddTrainingOptionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Training Option')),
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        title: const Text('Training Option'),
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/training_model.dart'; // Pastikan path ini bener ngarah ke model lu
+import '../models/m4_training_model.dart'; // Pastikan path ini bener ngarah ke model lu
 
 // 🟢 Class KPI ditaruh di sini aja biar file model utama tetep bersih
 class TrainingKpi {

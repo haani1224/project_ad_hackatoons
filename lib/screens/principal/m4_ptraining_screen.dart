@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/m4_training_service.dart';
 import '../../services/m1_docstorage_service.dart';
 import '../../widgets/loading_widget.dart';
-import 'add_training_option_screen.dart';
+import 'm4_ptraining2_screen.dart';
 import '../../utils/theme_constants.dart';
 
 class PrincipalTrainingScreen extends StatefulWidget {

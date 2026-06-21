@@ -3,7 +3,7 @@ import '../../services/auth_service.dart';
 import '../login_page.dart';
 import 'manage_user_page.dart';
 import 'principal_duty_page.dart';
-import 'principal_training_screen.dart';
+import 'm4_ptraining_screen.dart';
 import 'm1_precords_screen.dart';
 import 'principal_dashboard.dart';
 import 'principal_leave_approval.dart';
