@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-// import 'principal/manage_user_page.dart';
 import 'principal/principal_main_page.dart';
 import 'teacher/teacher_main_page.dart';
-// import '../models/teacher_model.dart';
-import '../services/duty_service.dart';
-// import 'principal/principal_duty_page.dart';
-// import 'teacher/teacher_duty_page.dart';
+import '../services/auth_service.dart';
+import '../screens/register_page.dart';
 import '../utils/constants.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,7 +15,8 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  final DutyService dutyService = DutyService();
+  final AuthService authService =
+    AuthService();
 
   bool isLoading = false;
   bool hidePassword = true;
@@ -27,7 +25,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => isLoading = true);
 
     try {
-      final teacher = await dutyService.loginTeacher(
+      final teacher = await authService.login(
         emailController.text.trim(),
         passwordController.text.trim(),
       );
@@ -131,6 +129,21 @@ class _LoginPageState extends State<LoginPage> {
                       ElevatedButton(
                         onPressed: login,
                         child: const Text("Login"),
+                      ),
+                      // Registeration link
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const RegisterPage(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Create Account',
+                        ),
                       ),
 
                     ],

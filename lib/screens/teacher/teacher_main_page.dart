@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
+import '../login_page.dart';
 import '../../models/teacher_model.dart';
 import '../../models/training_model.dart';
 import 'teacher_duty_page.dart';
@@ -19,6 +21,43 @@ class TeacherMainPage extends StatelessWidget {
   static const Color gold = Color(0xFFE59D2C);
   static const Color bgColor = Color(0xFFF0F2F7);
 
+  void _showMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Logout'),
+                onTap: () async {
+                  final nav = Navigator.of(context);
+
+                  Navigator.pop(context);
+
+                  await AuthService().logout();
+
+                  nav.pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                    (route) => false,
+                  );
+                },
+              ),
+
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,7 +65,7 @@ class TeacherMainPage extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: _buildHeader(),
+            child: _buildHeader(context),
           ),
 
           SliverToBoxAdapter(
@@ -151,7 +190,7 @@ class TeacherMainPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -224,6 +263,25 @@ class TeacherMainPage extends StatelessWidget {
                       Icons.notifications_none_rounded,
                       color: Colors.white,
                       size: 22,
+                    ),
+                  ),
+
+                  const SizedBox(width: 10),
+
+                  // Menu (logout)
+                  GestureDetector(
+                    onTap: () => _showMenu(context),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      child: const Icon(
+                        Icons.menu_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
                   ),
                 ],
