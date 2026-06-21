@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../login_page.dart';
 import '../../models/teacher_model.dart';
+import '../../models/m1_record_model.dart';
 import '../../models/training_model.dart';
 import 'teacher_duty_page.dart';
-import 'teacher_profile_screen.dart';
+import 'm1_trecord_screen.dart';
 import 'teacher_training_screen.dart';
 import 'teacher_home.dart';
 
 class TeacherMainPage extends StatelessWidget {
   final TeacherModel teacher;// 1. Add this variable
+  final TeacherRecord? record;
 
   const TeacherMainPage({
     super.key,
     required this.teacher,
+    this.record,
   });
+
 
   static const Color navy = Color(0xFF1B2E4B);
   static const Color navyLight = Color(0xFF2E4365);
@@ -22,40 +26,110 @@ class TeacherMainPage extends StatelessWidget {
   static const Color bgColor = Color(0xFFF0F2F7);
 
   void _showMenu(BuildContext context) {
-    showModalBottomSheet(
+    showGeneralDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Wrap(
-            children: [
+      barrierDismissible: true,
+      barrierLabel: "Menu",
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            color: Colors.white,
+            child: SizedBox(
+              width: 260,
+              height: double.infinity,
+              child: SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        "Menu",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const Divider(),
 
-              ListTile(
-                leading: const Icon(Icons.logout),
-                title: const Text('Logout'),
-                onTap: () async {
-                  final nav = Navigator.of(context);
+                    ListTile(
+                      leading: const Icon(Icons.person),
+                      title: const Text('My Profile'),
+                      onTap: () {
+                        Navigator.pop(context);
 
-                  Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TeacherProfileScreen(
+                              userId: teacher.authId,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
 
-                  await AuthService().logout();
+                    ListTile(
+                      leading: const Icon(Icons.logout),
+                      title: const Text('Logout'),
+                      onTap: () async {
+                        final nav = Navigator.of(context);
 
-                  nav.pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                    (route) => false,
-                  );
-                },
+                        Navigator.pop(context);
+
+                        await AuthService().logout();
+
+                        nav.pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                          (route) => false,
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-
-            ],
+            ),
           ),
         );
       },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final offset = Tween(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(animation);
+
+        return SlideTransition(
+          position: offset,
+          child: child,
+        );
+      },
     );
+  }
+
+  bool _hasMissingDocs(TeacherRecord? record) {
+    if (record == null) return false;
+
+    final hasMissingFiles =
+        record.docMyKadUrl == null ||
+        record.docMyKadUrl!.isEmpty ||
+        record.docPassportPhotoUrl == null ||
+        record.docPassportPhotoUrl!.isEmpty ||
+        record.docResumeUrl == null ||
+        record.docResumeUrl!.isEmpty ||
+        record.docAcademicCertUrl == null ||
+        record.docAcademicCertUrl!.isEmpty ||
+        record.docBankStatementUrl == null ||
+        record.docBankStatementUrl!.isEmpty;
+
+    final isChangeRequested =
+      (record.documentStatuses is Map) &&
+      record.documentStatuses['status'] == "change_requested";
+
+    return hasMissingFiles || isChangeRequested;
   }
 
   @override
@@ -67,6 +141,33 @@ class TeacherMainPage extends StatelessWidget {
           SliverToBoxAdapter(
             child: _buildHeader(context),
           ),
+          
+          if (_hasMissingDocs(record)) // or however you access record
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.orange.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          "Some required documents are missing. Please upload them in My Profile.",
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           SliverToBoxAdapter(
             child: Padding(
@@ -145,23 +246,7 @@ class TeacherMainPage extends StatelessWidget {
                   },
                 ),
 
-                _moduleCard(
-                  context,
-                  title: "Records",
-                  subtitle: "Files & important docs",
-                  icon: Icons.folder_open_rounded,
-                  gradient: const [Color(0xFFC0392B), Color(0xFFE74C3C)],
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TeacherProfileScreen(
-                          teacherId: teacher.id,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+// record already go into menu tab
 
                 _moduleCard(
                   context,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../services/training_service.dart';
-import '../../services/docstorage_service.dart';
+import '../../services/m4_training_service.dart';
+import '../../services/m1_docstorage_service.dart';
 import '../../widgets/loading_widget.dart';
 import 'add_training_option_screen.dart';
 import '../../utils/theme_constants.dart';

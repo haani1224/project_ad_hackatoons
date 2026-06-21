@@ -4,7 +4,7 @@ import '../../utils/constants.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../models/training_model.dart';          // Added missing training model import
-import '../../services/training_service.dart'; // 🟢 FIXED: Point to split service file
+import '../../services/m4_training_service.dart'; // 🟢 FIXED: Point to split service file
 
 class AddTrainingOptionScreen extends StatefulWidget {
   const AddTrainingOptionScreen({super.key});
