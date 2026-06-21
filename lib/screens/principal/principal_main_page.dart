@@ -6,6 +6,7 @@ import 'principal_duty_page.dart';
 import 'principal_training_screen.dart';
 import 'principal_records_screen.dart';
 import 'principal_dashboard.dart';
+import 'principal_leave_approval.dart';
 
 const Color _navy = Color(0xFF2E4365);
 const Color _navyDark = Color(0xFF1A2F50);
@@ -118,11 +119,17 @@ class PrincipalMainPage extends StatelessWidget {
                   icon: Icons.bar_chart_rounded,
                   color: Color(0xFF22C55E),
                 ),
-                const _ModuleCard(
+                 _ModuleCard(
                   title: 'Leave',
                   subtitle: 'Manage leave requests',
                   icon: Icons.event_note_rounded,
                   color: Color(0xFFF97316),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrincipalLeaveApproval(),
+                    ),
+                  ),
                 ),
                 _ModuleCard(
                   title: 'Tasks',
@@ -148,18 +155,18 @@ class PrincipalMainPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                _ModuleCard(
-                  title: 'Training',
-                  subtitle: 'Development programmes',
-                  icon: Icons.school_rounded,
-                  color:Color(0xFFEC4899),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PrincipalTrainingScreen(), 
-                    ),
-                  ),
-                ),
+                // _ModuleCard(
+                //   title: 'Training',
+                //   subtitle: 'Development programmes',
+                //   icon: Icons.school_rounded,
+                //   color:Color(0xFFEC4899),
+                //   onTap: () => Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //       builder: (_) => const PrincipalTrainingScreen(), 
+                //     ),
+                //   ),
+                // ),
                 _ModuleCard(
                   title: 'Manage Users',
                   subtitle: 'View and manage teachers',

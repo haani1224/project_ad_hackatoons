@@ -7,6 +7,7 @@ import 'teacher_duty_page.dart';
 import 'teacher_profile_screen.dart';
 import 'teacher_training_screen.dart';
 import 'teacher_home.dart';
+import 'teacher_leave_module.dart';
 
 class TeacherMainPage extends StatelessWidget {
   final TeacherModel teacher;// 1. Add this variable
@@ -123,8 +124,20 @@ class TeacherMainPage extends StatelessWidget {
                   title: "Leave",
                   subtitle: "Applications & approvals",
                   icon: Icons.event_available_outlined,
-                  gradient: const [Color(0xFF1A7A5E), Color(0xFF2EAF88)],
-                  onTap: () {},
+                  gradient: const [
+                    Color(0xFF1A7A5E),
+                    Color(0xFF2EAF88),
+                  ],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TeacherLeaveModule(
+                          teacherId: teacher.id,
+                        ),
+                      ),
+                    );
+                  },
                 ),
 
                 _moduleCard(
@@ -163,23 +176,23 @@ class TeacherMainPage extends StatelessWidget {
                   },
                 ),
 
-                _moduleCard(
-                  context,
-                  title: "Training",
-                  subtitle: "Professional development",
-                  icon: Icons.school_outlined,
-                  gradient: const [Color(0xFF1565A8), Color(0xFF1E90FF)],
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TeacherTrainingScreen(
-                          teacherId: teacher.id,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                // _moduleCard(
+                //   context,
+                //   title: "Training",
+                //   subtitle: "Professional development",
+                //   icon: Icons.school_outlined,
+                //   gradient: const [Color(0xFF1565A8), Color(0xFF1E90FF)],
+                //   onTap: () //{
+                //   //   Navigator.push(
+                //   //     context,
+                //       // MaterialPageRoute(
+                //       //   builder: (_) => TeacherTrainingScreen(
+                //       //     teacherId: teacher.id,
+                //       //   ),
+                //   //     ),
+                //   //   );
+                //   // },
+                // ),
               ]),
             ),
           ),

@@ -49,21 +49,21 @@ class PerformanceTrackerDashboard extends StatelessWidget {
                 childAspectRatio: 1.05,
               ),
               delegate: SliverChildListDelegate([
-                _moduleCard(
-                  context,
-                  title: "Attendance",
-                  subtitle: "Track attendance records",
-                  icon: Icons.check_circle_outline_rounded,
-                  gradient: const [Color(0xFF1565A8), Color(0xFF1E90FF)],
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AttendancePage(),
-                      ),
-                    );
-                  },
-                ),
+                // _moduleCard(
+                //   context,
+                //   title: "Attendance",
+                //   subtitle: "Track attendance records",
+                //   icon: Icons.check_circle_outline_rounded,
+                //   gradient: const [Color(0xFF1565A8), Color(0xFF1E90FF)],
+                //   onTap: () {
+                //     Navigator.push(
+                //       context,
+                //       MaterialPageRoute(
+                //         builder: (_) => const AttendancePage(),
+                //       ),
+                //     );
+                //   },
+                // ),
                 _moduleCard(
                   context,
                   title: "Classroom",
