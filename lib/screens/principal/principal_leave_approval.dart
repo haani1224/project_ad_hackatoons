@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'principal_leave_calendar_heatmap.dart';
+
 class PrincipalLeaveApproval extends StatefulWidget {
   const PrincipalLeaveApproval({super.key});
 
@@ -15,10 +17,7 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
   List<Map<String, dynamic>> leaves = [];
   bool loading = true;
 
-  String search = '';
-  String statusFilter = 'All';
-
-  final statuses = ['All', 'Pending', 'Approved', 'Rejected'];
+  int tab = 0;
 
   @override
   void initState() {
@@ -26,7 +25,9 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
     fetchLeaves();
   }
 
-  Future<void> fetchLeaves() async {
+  Future fetchLeaves() async {
+    setState(() => loading = true);
+
     final data = await supabase.from('leave_requests').select('''
       *,
       leave_types(name)
@@ -38,51 +39,26 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
     });
   }
 
-  Future<void> updateStatus(String id, String status) async {
+  int count(String status) =>
+      leaves.where((e) => e['status'] == status).length;
+
+  Future updateStatus(String id, String status) async {
     await supabase.from('leave_requests').update({
       'status': status,
-      'approved_date': status == 'Approved'
-          ? DateTime.now().toIso8601String()
-          : null,
+      'approved_date':
+          status == 'Approved' ? DateTime.now().toIso8601String() : null,
     }).eq('id', id);
 
     fetchLeaves();
   }
 
-  List<Map<String, dynamic>> get filtered {
-    return leaves.where((l) {
-      final matchStatus =
-          statusFilter == 'All' || l['status'] == statusFilter;
-
-      final matchSearch = (l['teacher_id'] ?? '')
-          .toString()
-          .toLowerCase()
-          .contains(search.toLowerCase());
-
-      return matchStatus && matchSearch;
-    }).toList();
-  }
-
-  int count(String status) =>
-      leaves.where((e) => e['status'] == status).length;
-
-  Color color(String status) {
-    switch (status) {
-      case 'Approved':
-        return Colors.green;
-      case 'Rejected':
-        return Colors.red;
-      default:
-        return Colors.orange;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6F8),
+      backgroundColor: const Color(0xFFF4F6FB),
+
       appBar: AppBar(
-        title: const Text("Leave Approval"),
+        title: const Text("Principal HR Dashboard"),
         backgroundColor: const Color(0xFF2E4365),
       ),
 
@@ -90,234 +66,350 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // KPI ROW
-                Padding(
-                  padding: const EdgeInsets.all(12),
+
+                // ================= TAB =================
+                Container(
+                  margin: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Row(
                     children: [
-                      kpi("Total", leaves.length, Colors.blue),
-                      kpi("Pending", count("Pending"), Colors.orange),
-                      kpi("Approved", count("Approved"), Colors.green),
-                      kpi("Rejected", count("Rejected"), Colors.red),
+                      _tab("Overview", 0, Icons.dashboard),
+                      _tab("Calendar", 1, Icons.calendar_month),
+                      _tab("Insights", 2, Icons.insights),
                     ],
                   ),
                 ),
 
-                // SEARCH
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: TextField(
-                    onChanged: (v) => setState(() => search = v),
-                    decoration: const InputDecoration(
-                      hintText: "Search teacher ID...",
-                      prefixIcon: Icon(Icons.search),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // FILTER CHIPS
-                SizedBox(
-                  height: 40,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: statuses.length,
-                    itemBuilder: (context, i) {
-                      final s = statuses[i];
-                      final selected = s == statusFilter;
-
-                      return GestureDetector(
-                        onTap: () => setState(() => statusFilter = s),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? const Color(0xFF2E4365)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            s,
-                            style: TextStyle(
-                              color:
-                                  selected ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: fetchLeaves,
-                    child: ListView.builder(
-                      itemCount: filtered.length,
-                      itemBuilder: (context, i) {
-                        final l = filtered[i];
-                        final status = l['status'] ?? 'Pending';
-
-                        return Card(
-                          margin: const EdgeInsets.all(10),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Teacher ID: ${l['teacher_id']}",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                ),
-
-                                Text(
-                                  l['leave_types']?['name'] ??
-                                      "No type",
-                                ),
-
-                                Text(
-                                  "${l['start_date']} → ${l['end_date']}",
-                                ),
-
-                                Text("Days: ${l['total_days']}"),
-
-                                Container(
-                                  margin: const EdgeInsets.symmetric(
-                                      vertical: 8),
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: color(status),
-                                    borderRadius:
-                                        BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    status,
-                                    style: const TextStyle(
-                                        color: Colors.white),
-                                  ),
-                                ),
-
-                                if (status == 'Pending')
-                                  Row(
-                                    children: [
-                                      ElevatedButton(
-                                        onPressed: () => updateStatus(
-                                            l['id'], 'Approved'),
-                                        child: const Text("Approve"),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      ElevatedButton(
-                                        onPressed: () => updateStatus(
-                                            l['id'], 'Rejected'),
-                                        child: const Text("Reject"),
-                                      ),
-                                    ],
-                                  )
-                                  
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
+                Expanded(child: _build()),
               ],
             ),
     );
   }
 
-  Widget kpi(String label, int value, Color c) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.all(4),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
+  Widget _build() {
+    switch (tab) {
+
+      // ================= OVERVIEW =================
+      case 0:
+        return ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            Text("$value",
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: c)),
-            Text(label),
+
+            _header(),
+
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                _kpi("Pending", count("Pending"), Colors.orange),
+                _kpi("Approved", count("Approved"), Colors.green),
+                _kpi("Rejected", count("Rejected"), Colors.red),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              "Pending Approvals",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 10),
+
+            ...leaves.where((e) => e['status'] == "Pending").take(5).map((l) {
+              return Card(
+                elevation: 3,
+                child: ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text("Teacher ${l['teacher_id']}"),
+                  subtitle: Text(l['leave_types']?['name'] ?? ""),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.check_circle, color: Colors.green),
+                        onPressed: () =>
+                            updateStatus(l['id'], "Approved"),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.cancel, color: Colors.red),
+                        onPressed: () =>
+                            updateStatus(l['id'], "Rejected"),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
           ],
+        );
+
+      // ================= CALENDAR =================
+      case 1:
+        return LeaveCalendarHeatmap(leaves: leaves);
+
+      // ================= INSIGHTS (WOW VERSION) =================
+      case 2:
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+
+            const Text(
+              "HR Insights Dashboard",
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 12),
+
+            _insightCard(
+              "Total Requests",
+              leaves.length,
+              Icons.list_alt,
+              Colors.blue,
+            ),
+
+            _insightCard(
+              "Pending Workload",
+              count("Pending"),
+              Icons.hourglass_bottom,
+              Colors.orange,
+            ),
+
+            _insightCard(
+              "Approved Leaves",
+              count("Approved"),
+              Icons.verified,
+              Colors.green,
+            ),
+
+            _insightCard(
+              "Rejected Cases",
+              count("Rejected"),
+              Icons.block,
+              Colors.red,
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              "Leave Distribution (Clean Bar View)",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 10),
+
+            _wowBar("Pending", count("Pending"), Colors.orange),
+            _wowBar("Approved", count("Approved"), Colors.green),
+            _wowBar("Rejected", count("Rejected"), Colors.red),
+
+            const SizedBox(height: 20),
+
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: count("Pending") > 10
+                    ? Colors.red.shade50
+                    : Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    count("Pending") > 10
+                        ? Icons.warning
+                        : Icons.check_circle,
+                    color: count("Pending") > 10
+                        ? Colors.red
+                        : Colors.green,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      count("Pending") > 10
+                          ? "⚠ High workload detected: consider fast approvals"
+                          : "✅ Workload stable across staff",
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+    }
+    return const SizedBox();
+  }
+
+  // ================= TAB =================
+  Widget _tab(String label, int i, IconData icon) {
+    final selected = tab == i;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => tab = i),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF2E4365) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Icon(icon,
+                  size: 18,
+                  color: selected ? Colors.white : Colors.grey),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: selected ? Colors.white : Colors.grey,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-    void showRejectDialog(String leaveId) {
-    final TextEditingController reasonController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Row(
-            children: const [
-              Icon(Icons.edit, color: Colors.red),
-              SizedBox(width: 8),
-              Text("Reject Leave"),
+  // ================= HEADER =================
+  Widget _header() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2E4365), Color(0xFF4C78A8)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.admin_panel_settings,
+              color: Colors.white, size: 40),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "Leave Management Control Center",
+              style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  // ================= KPI =================
+  Widget _kpi(String label, int value, Color c) {
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              Text(
+                "$value",
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: c),
+              ),
+              Text(label),
             ],
           ),
-          content: TextField(
-            controller: reasonController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: "Enter rejection reason...",
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.edit_note),
-            ),
+        ),
+      ),
+    );
+  }
+
+  // ================= INSIGHT CARD =================
+  Widget _insightCard(
+      String title, int value, IconData icon, Color color) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color.withOpacity(0.2),
+          child: Icon(icon, color: color),
+        ),
+        title: Text(title),
+        trailing: Text(
+          "$value",
+          style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color),
+        ),
+      ),
+    );
+  }
+
+  // ================= WOW BAR =================
+  Widget _wowBar(String label, int value, Color color) {
+    final width = (value * 18).clamp(10, 220).toDouble();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                "($value)",
+                style: TextStyle(color: color),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              icon: const Icon(Icons.send),
-              label: const Text("Send"),
-              onPressed: () async {
-                await Supabase.instance.client
-                    .from('leave_requests')
-                    .update({
-                      'status': 'Rejected',
-                      'rejection_reason': reasonController.text,
-                    })
-                    .eq('id', leaveId);
+          const SizedBox(height: 6),
 
-                    Row(
-                      children: [
-                        const Icon(Icons.edit, color: Colors.red),
-                        const SizedBox(width: 8),
-                        const Text("Reject Leave Request"),
-                      ],
-                    );
+          Stack(
+            children: [
+              Container(
+                height: 16,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
 
-                Navigator.pop(context);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Request rejected")),
-                );
-
-                setState(() {}); // refresh UI
-              },
-            ),
-          ],
-        );
-      },
+              Container(
+                height: 16,
+                width: width,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color.withOpacity(0.7),
+                      color,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.4),
+                      blurRadius: 6,
+                    )
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
-
