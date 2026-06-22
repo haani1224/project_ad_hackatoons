@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/m4_training_service.dart';
 import '../../services/m1_docstorage_service.dart';
+import '../../models/m4_training_model.dart';
 import '../../widgets/loading_widget.dart';
 import 'm4_ptraining2_screen.dart';
 import '../../utils/theme_constants.dart';
@@ -43,18 +44,21 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
         _svc.getTrainingOptionsWithApplicants(),
         _svc.getAllTeachersQuotaProgress(DateTime.now().year),
       ]);
-      if (mounted) {
-        setState(() {
-          _options = results[0];
-          _teacherProgress = results[1];
-          _loading = false;
-        });
-      }
-    } catch (e) {
+
+      if (!mounted) return;
+
+      setState(() {
+        _options = results[0];
+        _teacherProgress = results[1];
+        _loading = false;
+      });
+    } catch (e, s) {
+      debugPrint('LOAD ERROR: $e\n$s');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load records: $e')),
         );
+        setState(() => _loading = false);
       }
     }
   }
@@ -183,9 +187,36 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
                   ),
                 ],
               ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: navy,
+              trailing: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: navy),
+                onSelected: (value) async {
+                  if (value == 'edit') {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditTrainingOptionScreen(
+                          option: TrainingOption.fromMap(Map<String, dynamic>.from(opt)),
+                        ),
+                      ),
+                    );
+                    _load();
+                  }
+
+                  if (value == 'cancel') {
+                    await _svc.cancelTrainingOption(opt['id'].toString());
+                    _load();
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Text('Edit'),
+                  ),
+                  PopupMenuItem(
+                    value: 'cancel',
+                    child: Text('Cancel'),
+                  ),
+                ],
               ),
               onTap: () async {
                 await Navigator.push(
@@ -352,7 +383,7 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
 
   void _precacheUrls() {
     for (var a in _applicants) {
-      final photoUrls = List<String>.from(a['photo_urls'] ?? []);
+      final photoUrls = (a['photo_urls'] as List? ?? []).cast<String>();
       for (var path in photoUrls) {
         _downloadUrlCache.putIfAbsent(path, () => _docStorageSvc.getDownloadUrl(path));
       }
@@ -361,7 +392,7 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
 
   Future<void> _updateStatus(String trainingId, String status) async {
     try {
-      await _svc.updateTrainingStatus(trainingId, status);
+      await _svc.updateTrainingStatus(trainingId.toString(), status);
       setState(() {
         final idx = _applicants.indexWhere((a) => a['id'] == trainingId);
         if (idx != -1) {
@@ -424,8 +455,13 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-          title: Text(opt['title'] as String? ?? 'Details',
-              overflow: TextOverflow.ellipsis)),
+        backgroundColor: navy,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(opt['title'] as String? ?? 'Details',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
       body: Column(
         children: [
           Container(
@@ -482,9 +518,9 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                       final a = _applicants[i];
                       final status = a['status'] as String? ?? 'pending';
                       final tr = a['teacher_records'];
-                      final name = tr is Map
-                          ? tr['full_name'] as String? ?? 'Unknown'
-                          : 'Unknown';
+                      final name = (tr is Map && tr['full_name'] != null)
+                        ? tr['full_name'].toString()
+                        : 'Unknown';
                       final reflection = a['reflection'] as String?;
                       final certUrl = a['certificate_url'] as String?;
                       final photoUrls = List<String>.from(a['photo_urls'] ?? []);
@@ -641,7 +677,7 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                                     Expanded(
                                       child: OutlinedButton(
                                         onPressed: () => _updateStatus(
-                                            a['id'] as String, 'rejected'),
+                                            (a['id'] ?? '').toString(), 'rejected'),
                                         style: OutlinedButton.styleFrom(
                                             foregroundColor: Colors.red,
                                             side: const BorderSide(
@@ -653,7 +689,7 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                                     Expanded(
                                       child: ElevatedButton(
                                         onPressed: () => _updateStatus(
-                                            a['id'] as String, 'approved'),
+                                            (a['id'] ?? '').toString(), 'approved'),
                                         style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.green,
                                             foregroundColor: Colors.white),
@@ -667,7 +703,7 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                                 const SizedBox(height: 8),
                                 TextButton(
                                   onPressed: () => _updateStatus(
-                                      a['id'] as String, 'pending'),
+                                      (a['id'] ?? '').toString(), 'pending'),
                                   child: const Text('Reset to Pending',
                                       style: TextStyle(color: Colors.blueGrey)),
                                 ),

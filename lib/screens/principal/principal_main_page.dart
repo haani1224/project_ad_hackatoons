@@ -151,18 +151,18 @@ class PrincipalMainPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                // _ModuleCard(
-                //   title: 'Training',
-                //   subtitle: 'Development programmes',
-                //   icon: Icons.school_rounded,
-                //   color:Color(0xFFEC4899),
-                //   onTap: () => Navigator.push(
-                //     context,
-                //     MaterialPageRoute(
-                //       builder: (_) => const PrincipalTrainingScreen(), 
-                //     ),
-                //   ),
-                // ),
+                _ModuleCard(
+                  title: 'Training',
+                  subtitle: 'Development programmes',
+                  icon: Icons.school_rounded,
+                  color:Color(0xFFEC4899),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrincipalTrainingScreen(), 
+                    ),
+                  ),
+                ),
                 _ModuleCard(
                   title: 'Manage Users',
                   subtitle: 'View and manage teachers',
