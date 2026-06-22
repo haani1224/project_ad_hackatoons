@@ -86,73 +86,94 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "Preschool Duty Login",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                   Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
 
-                      TextField(
-                        controller: emailController,
-                        decoration: const InputDecoration(
-                          labelText: "Email",
-                          border: OutlineInputBorder(),
+                      // Logo/Image
+                      Image.asset(
+                        'assets/LOGO TADIKA AQIL MIQAIL.jpg',
+                        height: 120,
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        "Genius Aqil OS",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
                         ),
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 6),
 
-                      TextField(
-                        controller: passwordController,
-                        obscureText: hidePassword,
-                        decoration: InputDecoration(
-                          labelText: "Password",
-                          border: const OutlineInputBorder(),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              hidePassword
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                hidePassword = !hidePassword;
-                              });
-                            },
-                          ),
+                      const Text(
+                        "Tadika Aqil Mikail",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
                         ),
                       ),
 
                       const SizedBox(height: 20),
 
-                      ElevatedButton(
-                        onPressed: login,
-                        child: const Text("Login"),
-                      ),
-                      // Registeration link
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const RegisterPage(),
+                      Column(
+                        children: [
+                          TextField(
+                            controller: emailController,
+                            decoration: const InputDecoration(
+                              labelText: "Email",
+                              border: OutlineInputBorder(),
                             ),
-                          );
-                        },
-                        child: const Text(
-                          'Create Account',
-                        ),
-                      ),
+                          ),
 
+                          const SizedBox(height: 14),
+
+                          TextField(
+                            controller: passwordController,
+                            obscureText: hidePassword,
+                            decoration: InputDecoration(
+                              labelText: "Password",
+                              border: const OutlineInputBorder(),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  hidePassword
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    hidePassword = !hidePassword;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          ElevatedButton(
+                            onPressed: login,
+                            child: const Text("Login"),
+                          ),
+
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterPage(),
+                                ),
+                              );
+                            },
+                            child: const Text('Create Account'),
+                          ),
+                        ],
+                      ),
                     ],
-                  ),
+                  )
                 ],
               ),
             ),
