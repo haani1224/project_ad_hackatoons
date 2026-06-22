@@ -220,6 +220,7 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
                                       ),
                                     ],
                                   )
+                                  
                               ],
                             ),
                           ),
@@ -255,4 +256,68 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
       ),
     );
   }
+    void showRejectDialog(String leaveId) {
+    final TextEditingController reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Row(
+            children: const [
+              Icon(Icons.edit, color: Colors.red),
+              SizedBox(width: 8),
+              Text("Reject Leave"),
+            ],
+          ),
+          content: TextField(
+            controller: reasonController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: "Enter rejection reason...",
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.edit_note),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              icon: const Icon(Icons.send),
+              label: const Text("Send"),
+              onPressed: () async {
+                await Supabase.instance.client
+                    .from('leave_requests')
+                    .update({
+                      'status': 'Rejected',
+                      'rejection_reason': reasonController.text,
+                    })
+                    .eq('id', leaveId);
+
+                    Row(
+                      children: [
+                        const Icon(Icons.edit, color: Colors.red),
+                        const SizedBox(width: 8),
+                        const Text("Reject Leave Request"),
+                      ],
+                    );
+
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Request rejected")),
+                );
+
+                setState(() {}); // refresh UI
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
+

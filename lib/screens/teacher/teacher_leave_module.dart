@@ -3,49 +3,26 @@ import 'package:flutter/material.dart';
 import 'teacher_leave_dashboard.dart';
 import 'teacher_leave_history_page.dart';
 import 'teacher_leave_request_page.dart';
+import 'teacher_leave_balance_page.dart';
 
 class TeacherLeaveModule extends StatefulWidget {
   final int teacherId;
 
-  const TeacherLeaveModule({
-    super.key,
-    required this.teacherId,
-  });
+  const TeacherLeaveModule({super.key, required this.teacherId});
 
   @override
   State<TeacherLeaveModule> createState() =>
       _TeacherLeaveModuleState();
 }
 
-class _TeacherLeaveModuleState extends State<TeacherLeaveModule> {
+class _TeacherLeaveModuleState
+    extends State<TeacherLeaveModule> {
   int index = 0;
 
-  late List<Widget> pages;
+  // ✅ FIX: declare GlobalKey properly
+  final GlobalKey dashboardKey = GlobalKey();
 
-  static const Color gold = Color(0xFFE59D2C);
-  static const Color lightGold = Color(0xFFF3D58D);
-
-  static const LinearGradient goldGradient = LinearGradient(
-    colors: [lightGold, gold],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  @override
-  void initState() {
-    super.initState();
-
-    pages = [
-      TeacherLeaveDashboard(
-        teacherId: widget.teacherId,
-      ),
-      TeacherLeaveHistoryPage(
-        teacherId: widget.teacherId,
-      ),
-    ];
-  }
-
-  Future<void> _openApplyLeave() async {
+  void goApply() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -55,62 +32,59 @@ class _TeacherLeaveModuleState extends State<TeacherLeaveModule> {
       ),
     );
 
-    if (result == true && mounted) {
-      setState(() {
-        index = 0;
-      });
+    if (result == true) {
+      // 🔥 refresh dashboard safely
+      final state = dashboardKey.currentState;
+
+      if (state != null) {
+        (state as dynamic).load();
+      }
+
+      setState(() => index = 0);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      TeacherLeaveDashboard(
+        key: dashboardKey,
+        teacherId: widget.teacherId,
+      ),
+
+      TeacherLeaveBalancePage(
+        teacherId: widget.teacherId,
+      ),
+
+      TeacherLeaveHistoryPage(
+        teacherId: widget.teacherId,
+      ),
+    ];
+
     return Scaffold(
       body: pages[index],
 
-      // ================= FLOATING BUTTON (GRADIENT) =================
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: goldGradient,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: FloatingActionButton.extended(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text(
-            "Apply Leave",
-            style: TextStyle(color: Colors.white),
-          ),
-          onPressed: _openApplyLeave,
-        ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color(0xFFE59D2C),
+        icon: const Icon(Icons.add),
+        label: const Text("Apply Leave"),
+        onPressed: goApply,
       ),
 
-      // ================= BOTTOM NAV =================
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: index,
-        selectedItemColor: const Color(0xFF2E4365),
-        unselectedItemColor: Colors.grey,
-        onTap: (value) {
-          setState(() {
-            index = value;
-          });
-        },
+        onTap: (i) => setState(() => index = i),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard),
+            icon: Icon(Icons.dashboard),
             label: "Dashboard",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            activeIcon: Icon(Icons.history),
+            icon: Icon(Icons.wallet),
+            label: "Balance",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
             label: "History",
           ),
         ],
