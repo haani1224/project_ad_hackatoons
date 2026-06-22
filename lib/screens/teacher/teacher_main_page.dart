@@ -261,23 +261,23 @@ class TeacherMainPage extends StatelessWidget {
 
 // record already go into menu tab
 
-                // _moduleCard(
-                //   context,
-                //   title: "Training",
-                //   subtitle: "Professional development",
-                //   icon: Icons.school_outlined,
-                //   gradient: const [Color(0xFF1565A8), Color(0xFF1E90FF)],
-                //   onTap: () //{
-                //   //   Navigator.push(
-                //   //     context,
-                //       // MaterialPageRoute(
-                //       //   builder: (_) => TeacherTrainingScreen(
-                //       //     teacherId: teacher.id,
-                //       //   ),
-                //   //     ),
-                //   //   );
-                //   // },
-                // ),
+                _moduleCard(
+                  context,
+                  title: "Training",
+                  subtitle: "Professional development",
+                  icon: Icons.school_outlined,
+                  gradient: const [Color(0xFF1565A8), Color(0xFF1E90FF)],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TeacherTrainingScreen(
+                          teacherId: teacher.authId, // UUID
+                        )
+                      ),
+                    );
+                  },
+                ),
               ]),
             ),
           ),

@@ -9,11 +9,12 @@ import '../../services/m4_training_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../widgets/loading_widget.dart';
+import '../../utils/theme_constants.dart';
 
 // ── 1. Main list screen ───────────────────────────────────────────────────────
 
 class TeacherTrainingScreen extends StatefulWidget {
-  final int teacherId;
+  final String teacherId;
 
   const TeacherTrainingScreen({
     super.key,
@@ -26,12 +27,12 @@ class TeacherTrainingScreen extends StatefulWidget {
 
 class _TeacherTrainingScreenState extends State<TeacherTrainingScreen> {
   final _svc = TrainingService();
-  final _docStorageSvc = StorageService();
+  // final _docStorageSvc = StorageService();
   List<TrainingRecord> _trainings = [];
   int _approvedCount = 0;
   bool _loading = true;
 
-  String get _uid => Supabase.instance.client.auth.currentUser!.id;
+  // String get _uid => Supabase.instance.client.auth.currentUser!.id;
 
   @override
   void initState() {
@@ -40,34 +41,25 @@ class _TeacherTrainingScreenState extends State<TeacherTrainingScreen> {
   }
 
   Future<void> _load() async {
-  try {
-    print('Loading trainings...');
+    setState(() => _loading = true);   // ← always reset at start of reload
+    try {
+      final results = await Future.wait([
+        _svc.getMyTrainings(widget.teacherId),
+        _svc.getApprovedCountForYear(widget.teacherId, DateTime.now().year),
+      ]);
 
-    final results = await Future.wait([
-      _svc.getMyTrainings(_uid),
-      _svc.getApprovedCountForYear(_uid, DateTime.now().year),
-    ]);
+      if (!mounted) return;
 
-    print('Trainings loaded');
-    print('Count: ${results[0]}');
-    print('Approved: ${results[1]}');
-
-    if (mounted) {
       setState(() {
         _trainings = results[0] as List<TrainingRecord>;
         _approvedCount = results[1] as int;
         _loading = false;
       });
-    }
-  } catch (e, s) {
-    print('TeacherTrainingScreen error: $e');
-    print(s);
-
-    if (mounted) {
-      setState(() => _loading = false);
+    } catch (e, s) {
+      debugPrint('LOAD ERROR: $e\n$s');
+      if (mounted) setState(() => _loading = false);
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -76,14 +68,20 @@ class _TeacherTrainingScreenState extends State<TeacherTrainingScreen> {
     final bool meetsQuota = _approvedCount >= 3;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Training')),
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        title: const Text('My training'),
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: const Text('Apply for Training'),
         onPressed: () async {
           await Navigator.push(context,
               MaterialPageRoute(
-                  builder: (_) => SelectTrainingScreen(teacherId: _uid)));
+                  builder: (_) => SelectTrainingScreen(teacherId: widget.teacherId)));
           _load();
         },
       ),
@@ -216,9 +214,10 @@ class SelectTrainingScreen extends StatefulWidget {
 
 class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
   final _svc = TrainingService();
-  final _docStorageSvc = StorageService();
   List<TrainingOption> _options = [];
   bool _loading = true;
+
+  // final String _uid = Supabase.instance.client.auth.currentUser!.id;
 
   @override
   void initState() {
@@ -227,8 +226,8 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
   }
 
   Future<void> _load() async {
-    final data =
-        await _svc.getAvailableTrainingOptions(widget.teacherId);
+    final data = await _svc.getAvailableTrainingOptions(widget.teacherId);
+
     setState(() {
       _options = data;
       _loading = false;
@@ -238,7 +237,7 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
   Future<void> _apply(TrainingOption option) async {
     try {
       await _svc.applyForTraining(
-        teacherId: widget.teacherId.toString(),
+        teacherUuid: widget.teacherId,      // ✅ matches new service param
         trainingOptionId: option.id.toString(),
       );
       if (mounted) {
@@ -258,7 +257,13 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Available Trainings')),
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        title: const Text('Available Training'),
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: _loading
           ? const LoadingWidget()
           : _options.isEmpty
@@ -290,6 +295,32 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
                             Text(
                                 '${DateFormat('d MMM yyyy').format(o.trainingDate)} · ${o.durationHours}h'),
                             Text('${o.organizer} @ ${o.venue}'),
+                            if (o.meetingLink != null &&
+                              o.meetingLink!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+
+                            InkWell(
+                              onTap: () async {
+                                await launchUrl(
+                                  Uri.parse(o.meetingLink!),
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              },
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.link, size: 18),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Join Training',
+                                    style: TextStyle(
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                             const SizedBox(height: 12),
                             SizedBox(
                               width: double.infinity,
@@ -461,7 +492,12 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
   Widget build(BuildContext context) {
     final t = widget.training;
     return Scaffold(
-      appBar: AppBar(title: Text(t.title, overflow: TextOverflow.ellipsis)),
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -475,6 +511,21 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
             _infoRow('Duration', '${t.durationHours} hours'),
             _infoRow('Mode', t.mode),
             _infoRow('Venue', t.venue),
+            if (t.mode != 'Physical' &&
+              t.meetingLink != null &&
+              t.meetingLink!.isNotEmpty)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.video_call),
+              title: const Text('Join Online Session'),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () async {
+                await launchUrl(
+                  Uri.parse(t.meetingLink!),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+            ),
             const Divider(height: 32),
 
             // State-based content
@@ -548,7 +599,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                       tooltip: _certPath == null ? 'Upload' : 'Replace',
                       onPressed: () async {
                         final path = await _docStorageSvc.uploadTeacherDocument(
-                            userId: t.teacherId.toString(),
+                            userId: t.teacherUuid, 
                             docType: 'cert_${t.id}',
                             oldPath: _certPath);
                         if (path != null) setState(() => _certPath = path);
@@ -584,7 +635,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                     return InkWell(
                       onTap: () async {
                         final path = await _docStorageSvc.uploadTeacherDocument(
-                            userId: t.teacherId.toString(),
+                            userId: t.teacherUuid,
                             docType: 'img_${t.id}_$index');
                         if (path != null) {
                           setState(() => _photoPaths.add(path));
