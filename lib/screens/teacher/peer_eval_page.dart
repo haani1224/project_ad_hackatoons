@@ -13,7 +13,6 @@ class PeerEvaluationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Menggunakan context.watch agar lebih reaktif dan bersih
     final provider = context.watch<PeerEvaluationProvider>();
     final kpi = provider.kpi;
 
@@ -49,22 +48,18 @@ class PeerEvaluationPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // --- BAGIAN PILIH GURU ---
                   _buildSectionTitle('Target Evaluation'),
                   const SizedBox(height: 10),
                   _buildDropdownCard(provider),
 
                   const SizedBox(height: 24),
 
-                  // --- BAGIAN CHECKLIST (Hanya muncul jika guru dipilih) ---
                   if (provider.selectedTeacher != null) ...[
                     _buildSectionTitle('Assessment Checklist'),
                     const SizedBox(height: 10),
                     _buildChecklistCard(provider, kpi),
                     
                     const SizedBox(height: 32),
-
-                    // Tombol Submit Premium
                     SizedBox(
                       width: double.infinity,
                       height: 54,
@@ -107,7 +102,6 @@ class PeerEvaluationPage extends StatelessWidget {
     );
   }
 
-  // --- WIDGET HELPER ---
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
