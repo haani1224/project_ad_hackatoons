@@ -132,19 +132,17 @@ class _TeacherLeaveRequestPageState
     setState(() => loading = true);
 
     try {
-      String? fileUrl;
-
+      String? filePath;
       if (attachmentFile != null) {
         final fileName =
-            "${DateTime.now().millisecondsSinceEpoch}_$attachmentName";
-
+            "${widget.teacherId}_${DateTime.now().millisecondsSinceEpoch}_$attachmentName";
         await supabase.storage
             .from('leave-documents')
-            .upload(fileName, attachmentFile!);
-
-        fileUrl = supabase.storage
-            .from('leave-documents')
-            .getPublicUrl(fileName);
+            .upload(
+              fileName,
+              attachmentFile!,
+            );
+        filePath = fileName;
       }
 
       await supabase.from('leave_requests').insert({
@@ -154,7 +152,7 @@ class _TeacherLeaveRequestPageState
         'end_date': endDate!.toIso8601String(),
         'total_days': totalDays,
         'reason': reasonController.text,
-        'attachment_path': fileUrl,
+        'attachment_path': filePath,
         'status': 'Pending',
         'submitted_date': DateTime.now().toIso8601String(),
       });

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'principal_leave_calendar_heatmap.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class PrincipalLeaveApproval extends StatefulWidget {
   const PrincipalLeaveApproval({super.key});
@@ -18,6 +18,7 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
   bool loading = true;
 
   int tab = 0;
+  String selectedStatus = "All";
 
   @override
   void initState() {
@@ -26,15 +27,32 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
   }
 
   Future fetchLeaves() async {
-    setState(() => loading = true);
-
+    setState(() {loading = true;});
     final data = await supabase.from('leave_requests').select('''
-      *,
-      leave_types(name)
-    ''').order('submitted_date', ascending: false);
+          *,
+          leave_types(name),
+          users!leave_requests_teacher_id_fkey(name)
+        ''').order('submitted_date', ascending: false);
+    for (final leave in data) {
+      if (leave['status'] == "Pending") {
+        final result = await validateLeaveRequest(leave);
 
+        if (result['valid'] == false) {
+          await supabase.from('leave_requests').update({
+                'status': 'Rejected',
+                'rejection_reason': result['reason'],
+                'approved_date': DateTime.now().toIso8601String(),
+              }).eq('id', leave['id']);
+        }
+      }
+    }
+    final updated = await supabase.from('leave_requests').select('''
+          *,
+          leave_types(name),
+          users!leave_requests_teacher_id_fkey(name)
+        ''').order('submitted_date', ascending: false);
     setState(() {
-      leaves = List<Map<String, dynamic>>.from(data);
+      leaves = List<Map<String, dynamic>>.from(updated);
       loading = false;
     });
   }
@@ -45,11 +63,256 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
   Future updateStatus(String id, String status) async {
     await supabase.from('leave_requests').update({
       'status': status,
-      'approved_date':
-          status == 'Approved' ? DateTime.now().toIso8601String() : null,
+      'approved_date': status == 'Approved' ? DateTime.now().toIso8601String() : null,
     }).eq('id', id);
 
     fetchLeaves();
+  }
+
+  Future revertToPending(String id) async {
+    await supabase.from('leave_requests').update({
+          'status': 'Pending',
+          'approved_date': null,
+          'rejection_reason': null,
+        }).eq('id', id);
+    fetchLeaves();
+  }
+
+  Future<int> getUsedLeaveDays(int teacherId, String leaveType) async {
+    final data = await supabase.from('leave_requests').select('''total_days,leave_types(name)''')
+    .eq('teacher_id', teacherId)
+    .eq('status', 'Approved');
+    int used = 0;
+    for(var leave in data){
+    if(leave['leave_types']['name']== leaveType){
+        used += (leave['total_days'] ?? 0) as int;
+      }
+    }
+    return used;
+  }
+
+  Future<Map<String, dynamic>> validateLeaveRequest(
+    Map<String, dynamic> leave) async {
+
+    final leaveType = leave['leave_types']['name'];
+    final start = DateTime.parse(leave['start_date']);
+    final end = DateTime.parse(leave['end_date']);
+    final totalDays = end.difference(start).inDays + 1;
+    final Map<String, int> entitlements = {
+      'Annual Leave': 8,
+      'Medical Leave': 14,
+      'Unpaid Leave': 8,
+      'Maternity Leave': 98,
+      'Marriage Leave': 5,
+      'Compassionate Leave': 2,
+      'Umrah Leave': 14,
+      'Haji Leave': 40,
+      'Birthday Leave': 1,
+      'Half-Day Leave': 24,
+    };
+
+    final entitlement = entitlements[leaveType] ?? 0;
+    final used = await getUsedLeaveDays(leave['teacher_id'], leaveType,);
+    final remaining = entitlement - used;
+    if(totalDays > remaining){
+    return {
+      "valid":false,
+      "reason":
+      "Insufficient $leaveType balance. "
+      "Remaining balance: $remaining day(s)"
+      };
+    }
+  return {"valid":true};
+}
+
+ Future previewAttachment(String path) async {
+
+  try {
+
+    final url = await supabase.storage
+        .from('leave-documents')
+        .createSignedUrl(
+          path,
+          300,
+        );
+
+
+    if(path.toLowerCase().endsWith(".pdf")) {
+
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) {
+
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text(
+                  "PDF Attachment",
+                ),
+                backgroundColor: const Color(0xFF2E4365),
+                foregroundColor: Colors.white,
+              ),
+
+              body: SfPdfViewer.network(
+                url,
+                onDocumentLoadFailed: (details) {
+
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          details.description,
+                        ),
+                      ),
+                    );
+
+              },
+              ),
+
+            );
+
+          },
+        ),
+      );
+
+
+    } else {
+
+
+      showDialog(
+        context: context,
+        builder: (_) {
+
+          return Dialog(
+            child: InteractiveViewer(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+              ),
+            ),
+          );
+
+        },
+      );
+
+
+    }
+
+
+  } catch(e) {
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+          SnackBar(
+            content: Text(
+              "Cannot open attachment: $e",
+            ),
+          ),
+        );
+
+  }
+
+}
+
+  Future showRejectDialog(Map<String, dynamic> leave) async {
+    TextEditingController reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.cancel_rounded,
+                color: Colors.red,
+              ),
+              SizedBox(width: 8),
+              Text("Reject Leave"),
+            ],
+          ),
+          content: TextField(
+            controller: reasonController,
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: "Enter rejection reason...",
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+
+          actions: [
+            TextButton(
+              onPressed: (){
+                Navigator.pop(context);
+              },
+              child: const Text(
+                "Cancel",
+              ),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.block),
+              label: const Text(
+                "Reject",
+              ),
+              onPressed: () async {
+                if(reasonController.text.trim().isEmpty){
+                  ScaffoldMessenger.of(context)
+                  .showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "Please enter rejection reason",
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                await supabase
+                .from('leave_requests')
+                .update({
+                  'status': 'Rejected',
+                  'rejection_reason':
+                      reasonController.text.trim(),
+                })
+                .eq('id', leave['id']);
+                Navigator.pop(context);
+                fetchLeaves();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  int calculateLeaveDays(String start, String end) {
+
+    DateTime startDate = DateTime.parse(start);
+    DateTime endDate = DateTime.parse(end);
+
+    return endDate.difference(startDate).inDays + 1;
+  }
+
+  String formatDate(String date) {
+    final parsed = DateTime.parse(date);
+
+    return "${parsed.day.toString().padLeft(2, '0')}/"
+        "${parsed.month.toString().padLeft(2, '0')}/"
+        "${parsed.year}";
   }
 
   @override
@@ -58,8 +321,9 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
       backgroundColor: const Color(0xFFF4F6FB),
 
       appBar: AppBar(
-        title: const Text("Principal HR Dashboard"),
+        title: const Text("Leave Management"),
         backgroundColor: const Color(0xFF2E4365),
+        foregroundColor: Colors.white,
       ),
 
       body: loading
@@ -105,43 +369,253 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
 
             Row(
               children: [
-                _kpi("Pending", count("Pending"), Colors.orange),
-                _kpi("Approved", count("Approved"), Colors.green),
-                _kpi("Rejected", count("Rejected"), Colors.red),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => selectedStatus = "Pending"),
+                    child: _kpi("Pending", count("Pending"), Colors.orange),
+                  ),
+                ),
+
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => selectedStatus = "Approved"),
+                    child: _kpi("Approved", count("Approved"), Colors.green),
+                  ),
+                ),
+
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => selectedStatus = "Rejected"),
+                    child: _kpi("Rejected", count("Rejected"), Colors.red),
+                  ),
+                ),
               ],
             ),
+                
+            const SizedBox(height: 20),
+
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _statusChip("All"),
+                      const SizedBox(width: 6),
+                      _statusChip("Pending"),
+                      const SizedBox(width: 6),
+                      _statusChip("Approved"),
+                      const SizedBox(width: 6),
+                      _statusChip("Rejected"),
+                    ],
+                  ),
+                ),
 
             const SizedBox(height: 20),
 
-            const Text(
-              "Pending Approvals",
+            Text(
+              selectedStatus == "All"
+                    ? "Leave History"
+                    : "$selectedStatus Leave Requests",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
 
-            ...leaves.where((e) => e['status'] == "Pending").take(5).map((l) {
+            ...leaves.where((e) => selectedStatus == "All" ? true : e['status'] == selectedStatus).map((l) {
               return Card(
                 elevation: 3,
                 child: ListTile(
                   leading: const Icon(Icons.person),
-                  title: Text("Teacher ${l['teacher_id']}"),
-                  subtitle: Text(l['leave_types']?['name'] ?? ""),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  title: Text(
+                    l['users']?['name'] ?? "Unknown Teacher",
+                    style: const TextStyle(fontWeight: FontWeight.bold,),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.check_circle, color: Colors.green),
-                        onPressed: () =>
-                            updateStatus(l['id'], "Approved"),
+                      Text(l['leave_types']?['name'] ?? "",),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Applied: ${DateTime.parse(l['submitted_date']).day}/${DateTime.parse(l['submitted_date']).month}/${DateTime.parse(l['submitted_date']).year}",
+                        style: const TextStyle(fontSize: 11.8),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.cancel, color: Colors.red),
-                        onPressed: () =>
-                            updateStatus(l['id'], "Rejected"),
+                      Text(
+                        "Leave: ${formatDate(l['start_date'])} → ${formatDate(l['end_date'])}",
+                        style: const TextStyle(fontSize: 11.8),
                       ),
+
+                      const SizedBox(height: 4),
+
+                    if (l['attachment_path'] != null)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () {
+                          previewAttachment(
+                            l['attachment_path'],
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 4, bottom: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.attach_file_rounded,
+                                size: 14,
+                                color: Colors.deepPurple,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                "Attachment",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.deepPurple,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          "${calculateLeaveDays(l['start_date'], l['end_date'])} day(s)",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ),
+
+                      if(l['status']=="Rejected" &&
+                        l['rejection_reason'] != null)
+                        
+                        Text(
+                          "Reason: ${l['rejection_reason']}",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.red,
+                          ),
+                        ),
                     ],
                   ),
+                  
+                  trailing: l['status'] == "Pending"
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.check_circle, color: Colors.green),
+                            onPressed: () =>
+                                updateStatus(l['id'], "Approved"),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.cancel, color: Colors.red),
+                            onPressed: () =>
+                                showRejectDialog(l),
+                          ),
+                        ],
+                      )
+                    : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: l['status'] == "Approved"
+                                ? Colors.green.shade50
+                                : Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: l['status'] == "Approved"
+                                  ? Colors.green.shade300
+                                  : Colors.red.shade300,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                l['status'] == "Approved"
+                                    ? Icons.check_circle_rounded
+                                    : Icons.cancel_rounded,
+                                size: 18,
+                                color: l['status'] == "Approved"
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                l['status'],
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: l['status'] == "Approved"
+                                      ? Colors.green.shade700
+                                      : Colors.red.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        // Revert Button
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => revertToPending(l['id']),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.refresh_rounded,
+                                  size: 14,
+                                  color: Colors.blue,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  "Revert",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                 ),
               );
             }),
@@ -150,7 +624,11 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
 
       // ================= CALENDAR =================
       case 1:
-        return LeaveCalendarHeatmap(leaves: leaves);
+        return LeaveCalendarHeatmap(
+           leaves: leaves,
+           onApprove: (id) async {await updateStatus(id, "Approved"); },
+           onReject: (leave) async {await showRejectDialog(leave);},
+        );
 
       // ================= INSIGHTS (WOW VERSION) =================
       case 2:
@@ -159,7 +637,7 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
           children: [
 
             const Text(
-              "HR Insights Dashboard",
+              "Leave Insights Dashboard",
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.bold),
             ),
@@ -188,7 +666,7 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
             ),
 
             _insightCard(
-              "Rejected Cases",
+              "Rejected Leaves",
               count("Rejected"),
               Icons.block,
               Colors.red,
@@ -197,7 +675,7 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
             const SizedBox(height: 20),
 
             const Text(
-              "Leave Distribution (Clean Bar View)",
+              "Leave Distribution ",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
 
@@ -309,8 +787,7 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
 
   // ================= KPI =================
   Widget _kpi(String label, int value, Color c) {
-    return Expanded(
-      child: Card(
+    return Card(
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -326,10 +803,65 @@ class _PrincipalLeaveApprovalState extends State<PrincipalLeaveApproval> {
             ],
           ),
         ),
-      ),
     );
   }
 
+  Widget _statusChip(String status) {
+    final selected = selectedStatus == status;
+    // IconData icon;
+    Color color;
+    switch (status) {
+      case "Pending":
+        color = Colors.orange;
+        break;
+      case "Approved":
+        color = Colors.green;
+        break;
+      case "Rejected":
+        color = Colors.red;
+        break;
+      default:
+        color = const Color(0xFF2E4365);
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      child: ChoiceChip(
+        label: Text(
+          status,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: selected
+                ? Colors.white
+                : Colors.grey.shade700,
+          ),
+        ),
+        selected: selected,
+        checkmarkColor: Colors.white,
+        onSelected: (_) {
+          setState(() {
+            selectedStatus = status;
+          });
+        },
+        backgroundColor: Colors.white,
+        selectedColor: color,
+        elevation: selected ? 4 : 1,
+        shadowColor: color.withOpacity(0.3),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
+          side: BorderSide(
+            color: selected
+                ? color
+                : Colors.grey.shade300,
+          ),
+        ),
+      ),
+    );
+  }
   // ================= INSIGHT CARD =================
   Widget _insightCard(
       String title, int value, IconData icon, Color color) {

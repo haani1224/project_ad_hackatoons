@@ -5,12 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/teacher/teacher_main_page.dart';
 // import 'screens/teacher/teacher_home.dart';
 // import 'screens/principal/principal_home.dart';
-// <<<<<<< Updated upstream
 // import '../features/auth/login_page.dart';
 // import 'package:supabase_flutter/supabase_flutter.dart';
-// =======
 // import 'package:supabase_flutter/supabase_flutter.dart';
-// >>>>>>> Stashed changes
 // import 'core/constants/supabase_constants.dart';
 // import 'core/theme/app_theme.dart';
 // // import 'features/teachers/teacher_list_page.dart';
