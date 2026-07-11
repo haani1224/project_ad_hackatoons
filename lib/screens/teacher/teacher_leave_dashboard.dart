@@ -26,6 +26,7 @@ class _TeacherLeaveDashboardState
 
   // date -> list of status
   Map<DateTime, List<Map<String, dynamic>>> calendar = {};
+  bool showBirthdayReminder = false;
 
   @override
   void initState() {
@@ -33,34 +34,45 @@ class _TeacherLeaveDashboardState
     load();
   }
 
-  Future<void> load() async {
+Future<void> load() async {
+  try {
     setState(() => loading = true);
 
-    final data =
-        await repo.getTeacherLeaves(widget.teacherId);
+    print("Teacher ID = ${widget.teacherId}");
 
-    Map<DateTime, List<Map<String, dynamic>>> temp = {};
+    final data = await repo.getTeacherLeaves(widget.teacherId);
+
+    final Map<DateTime, List<Map<String, dynamic>>> temp = {};
 
     for (final l in data) {
       final start = DateTime.parse(l['start_date']);
       final end = DateTime.parse(l['end_date']);
 
-      for (DateTime d = start;
-          d.isBefore(end.add(const Duration(days: 1)));
-          d = d.add(const Duration(days: 1))) {
+      for (
+        DateTime d = start;
+        !d.isAfter(end);
+        d = d.add(const Duration(days: 1))
+      ) {
         final key = DateTime(d.year, d.month, d.day);
-
         temp.putIfAbsent(key, () => []);
         temp[key]!.add(l);
       }
     }
 
-    setState(() {
-      leaves = data;
-      calendar = temp;
-      loading = false;
-    });
+    leaves = data;
+    calendar = temp;
+
+    await checkBirthdayReminder();
+  } catch (e, stackTrace) {
+    debugPrint("LOAD ERROR:");
+    debugPrint(e.toString());
+    debugPrint(stackTrace.toString());
+  } finally {
+    if (mounted) {
+      setState(() => loading = false);
+    }
   }
+}
 
   int count(String status) =>
       leaves.where((e) => e['status'] == status).length;
@@ -71,6 +83,39 @@ class _TeacherLeaveDashboardState
     if (status == "Rejected") return Colors.red;
     return Colors.grey;
   }
+
+  Future<void> checkBirthdayReminder() async {
+  print("Checking birthday reminder...");
+
+  final teacher = await repo.getTeacherProfile(widget.teacherId);
+
+
+  if (teacher == null) {
+    showBirthdayReminder = false;
+    return;
+  }
+
+  final ic = teacher['ic_number'] ?? '';
+
+  if (ic.length < 4) {
+    showBirthdayReminder = false;
+    return;
+  }
+
+  final birthMonth = int.tryParse(ic.substring(2, 4));
+  if (birthMonth == null || birthMonth != DateTime.now().month) {
+    showBirthdayReminder = false;
+    return;
+  }
+
+  final alreadyApproved = leaves.any((leave) {
+    if (leave['leave_types']?['name'] != 'Birthday Leave') return false;
+    if (leave['status'] != 'Approved') return false;
+
+    return DateTime.parse(leave['start_date']).year == DateTime.now().year;
+  });
+  showBirthdayReminder = !alreadyApproved;
+}
 
   void showDayDetails(DateTime day) {
     final key = DateTime(day.year, day.month, day.day);
@@ -88,7 +133,13 @@ class _TeacherLeaveDashboardState
                   return ListTile(
                     title: Text(l['leave_types']?['name'] ?? ''),
                     subtitle: Text(
-                        "${l['start_date']} → ${l['end_date']}"),
+                        "${l['start_date']} → ${l['end_date']}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color.fromARGB(255, 80, 80, 80),
+                        ),
+                    ),    
+                        
                     trailing: Text(
                       l['status'],
                       style: TextStyle(
@@ -103,156 +154,481 @@ class _TeacherLeaveDashboardState
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFF5F6F8),
-              Color(0xFFE3EDF7),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: loading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
+@override
+Widget build(BuildContext context) {
+ return Scaffold(
 
+backgroundColor: const Color(0xFFF4F6FB),
+
+appBar: AppBar(
+
+backgroundColor: const Color(0xFF2E4365),
+
+elevation: 0,
+
+title: const Text(
+  "Leave Management",
+  style: TextStyle(
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+  ),
+),
+
+iconTheme: const IconThemeData(
+  color: Colors.white,
+),
+
+),
+
+
+    body: Container(
+      color: const Color(0xFFF4F6FB),
+      child: loading
+      ? const Center(
+          child: CircularProgressIndicator(),
+        )
+      : ListView(
+
+        padding: const EdgeInsets.only(
+          top: 20,
+          left:16,
+          right:16,
+          bottom:20,
+        ),
+        children:[
                   // ================= HEADER =================
                   Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF2E4365),
-                          Color(0xFF3C5A8A)
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Text(
-                      "📊 Leave Dashboard",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+padding: const EdgeInsets.all(20),
 
+decoration: BoxDecoration(
+
+gradient: const LinearGradient(
+
+colors:[
+Color(0xFF2E4365),
+Color(0xFF5478B5),
+],
+
+begin: Alignment.topLeft,
+end: Alignment.bottomRight,
+
+),
+
+
+borderRadius: BorderRadius.circular(22),
+
+
+boxShadow:[
+BoxShadow(
+color: Colors.black.withOpacity(.15),
+blurRadius:15,
+offset: const Offset(0,8),
+)
+]
+
+),
+
+
+child: const Row(
+
+children:[
+
+Icon(
+Icons.calendar_month_rounded,
+color: Colors.white,
+size:40,
+),
+
+
+SizedBox(width:15),
+
+
+Column(
+
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+children:[
+
+Text(
+"Leave Dashboard",
+style:TextStyle(
+color:Colors.white,
+fontSize:22,
+fontWeight:FontWeight.bold,
+),
+),
+
+
+SizedBox(height:5),
+
+
+Text(
+"Track your leave applications",
+style:TextStyle(
+color:Colors.white70,
+fontSize:13,
+),
+)
+
+],
+
+)
+
+],
+
+),
+
+),
+
+if (showBirthdayReminder) ...[
+  const SizedBox(height: 15),
+
+  Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF8E1),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(
+        color: Colors.amber.shade400,
+      ),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+
+        const Icon(
+          Icons.cake_rounded,
+          color: Colors.orange,
+          size: 34,
+        ),
+
+        const SizedBox(width: 15),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              const Text(
+                "🎉 It is your Birthday Month!",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              Text(
+                "Celebrate your special month! 🎂\n\n"
+                "Don't forget to claim your Birthday Leave before the month ends.",
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                ),
+              ),
+
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+],
                   const SizedBox(height: 15),
-
                   // ================= STATUS =================
                   Row(
-                    children: [
-                      _stat("Pending",
-                          count("Pending"),
-                          Colors.orange),
-                      _stat("Approved",
-                          count("Approved"),
-                          Colors.green),
-                      _stat("Rejected",
-                          count("Rejected"),
-                          Colors.red),
-                    ],
-                  ),
+children: [
+
+_stat(
+ "Pending",
+ count("Pending"),
+ Colors.orange,
+ Icons.hourglass_top_rounded,
+),
+
+
+_stat(
+ "Approved",
+ count("Approved"),
+ Colors.green,
+ Icons.check_circle_rounded,
+),
+
+
+_stat(
+ "Rejected",
+ count("Rejected"),
+ Colors.red,
+ Icons.cancel_rounded,
+),
+
+],
+),
 
                   const SizedBox(height: 15),
 
                   // ================= CALENDAR =================
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "📅 Leave Calendar",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold),
-                          ),
+               Card(
 
-                          const SizedBox(height: 8),
+elevation:0,
 
-                          Row(
-                            children: const [
-                              Icon(Icons.circle,
-                                  size: 10,
-                                  color: Colors.green),
-                              SizedBox(width: 5),
-                              Text("Approved"),
-                              SizedBox(width: 10),
-                              Icon(Icons.circle,
-                                  size: 10,
-                                  color: Colors.orange),
-                              SizedBox(width: 5),
-                              Text("Pending"),
-                              SizedBox(width: 10),
-                              Icon(Icons.circle,
-                                  size: 10,
-                                  color: Colors.red),
-                              SizedBox(width: 5),
-                              Text("Rejected"),
-                            ],
-                          ),
+color:Colors.transparent,
 
-                          const SizedBox(height: 10),
 
-                          TableCalendar(
-                            focusedDay: DateTime.now(),
-                            firstDay: DateTime(2020),
-                            lastDay: DateTime(2030),
+child:Container(
 
-                            onDaySelected: (selectedDay, _) {
-                              showDayDetails(selectedDay);
-                            },
+padding:const EdgeInsets.all(18),
 
-                            calendarBuilders:
-                                CalendarBuilders(
-                              markerBuilder: (context, day, events) {
-                                final key = DateTime(
-                                    day.year, day.month, day.day);
 
-                                final items = calendar[key];
+decoration:BoxDecoration(
 
-                                if (items == null) return null;
+color:Colors.white,
 
-                                // show FIRST status color
-                                final color = statusColor(
-                                    items.first['status']);
+borderRadius:
+BorderRadius.circular(22),
 
-                                return Align(
-                                  alignment: Alignment.bottomCenter,
-                                  child: Container(
-                                    width: 7,
-                                    height: 7,
-                                    decoration: BoxDecoration(
-                                      color: color,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+
+boxShadow:[
+
+BoxShadow(
+
+color:Colors.black.withOpacity(.08),
+
+blurRadius:18,
+
+offset:
+const Offset(0,8),
+
+)
+
+],
+
+),
+
+
+child:Column(
+
+crossAxisAlignment:
+CrossAxisAlignment.start,
+
+
+children:[
+
+
+Row(
+
+children:[
+
+
+Container(
+
+padding:
+const EdgeInsets.all(8),
+
+
+decoration:BoxDecoration(
+
+color:
+Color(0xFF2E4365).withOpacity(.12),
+
+shape:
+BoxShape.circle,
+
+),
+
+
+child:const Icon(
+
+Icons.calendar_month_rounded,
+
+color:
+Color(0xFF2E4365),
+
+),
+
+),
+
+
+const SizedBox(width:10),
+
+
+const Text(
+
+"Leave Calendar",
+
+style:TextStyle(
+
+fontSize:16,
+
+fontWeight:
+FontWeight.bold,
+
+),
+
+),
+
+
+],
+
+),
+
+
+const SizedBox(height:15),
+
+
+Row(
+
+children:[
+
+Icon(Icons.circle,
+size:10,
+color:Colors.green),
+
+SizedBox(width:5),
+
+Text("Approved"),
+
+
+SizedBox(width:15),
+
+
+Icon(Icons.circle,
+size:10,
+color:Colors.orange),
+
+SizedBox(width:5),
+
+Text("Pending"),
+
+
+SizedBox(width:15),
+
+
+Icon(Icons.circle,
+size:10,
+color:Colors.red),
+
+SizedBox(width:5),
+
+Text("Rejected"),
+
+],
+
+),
+
+
+const SizedBox(height:10),
+
+
+TableCalendar(
+
+focusedDay:DateTime.now(),
+firstDay:DateTime(2020),
+lastDay:DateTime(2040),
+
+onDaySelected:(selectedDay,_){showDayDetails(selectedDay);},
+
+availableCalendarFormats: const {
+  CalendarFormat.month: 'Month',
+},
+
+headerStyle: const HeaderStyle(
+  titleCentered: true,
+  formatButtonVisible: false,
+),
+
+calendarBuilders:
+CalendarBuilders(
+
+markerBuilder:
+(context,day,events){
+
+
+final key =
+DateTime(
+day.year,
+day.month,
+day.day
+);
+
+
+final items =
+calendar[key];
+
+
+if(items==null)
+return null;
+
+
+
+return Align(
+
+alignment:
+Alignment.bottomCenter,
+
+
+child:Container(
+
+width:7,
+
+height:7,
+
+
+decoration:
+BoxDecoration(
+
+color:
+statusColor(
+items.first['status']
+),
+
+shape:
+BoxShape.circle,
+
+),
+
+),
+
+);
+
+
+},
+
+),
+
+),
+
+
+],
+
+),
+
+),
+
+),
 
                   const SizedBox(height: 15),
 
                   // ================= CHART =================
                   Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
+  elevation: 0,
+  color: Colors.transparent,
+  child: Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(.08),
+          blurRadius: 18,
+          offset: const Offset(0,8),
+        )
+      ],
+    ),
+
+child: Column(
                         crossAxisAlignment:
                             CrossAxisAlignment.start,
                         children: [
@@ -340,31 +716,77 @@ class _TeacherLeaveDashboardState
     );
   }
 
-  Widget _stat(String title, int value, Color color) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.all(4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(
-              "$value",
-              style: TextStyle(
-                color: color,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(title),
-          ],
+  Widget _stat(String title, int value, Color color, IconData icon) {
+  return Expanded(
+    child: Container(
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.all(14),
+
+      decoration: BoxDecoration(
+        color: Colors.white,
+
+        borderRadius: BorderRadius.circular(18),
+
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+
+        border: Border.all(
+          color: color.withOpacity(0.2),
         ),
       ),
-    );
-  }
+
+      child: Column(
+        children: [
+
+          Container(
+            padding: const EdgeInsets.all(10),
+
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+
+            child: Icon(
+              icon,
+              color: color,
+              size: 22,
+            ),
+          ),
+
+
+          const SizedBox(height: 8),
+
+
+          Text(
+            "$value",
+
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+
+
+          Text(
+            title,
+
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   BarChartGroupData _bar(int x, double y, Color color) {
     return BarChartGroupData(
@@ -373,14 +795,23 @@ class _TeacherLeaveDashboardState
         BarChartRodData(
           toY: y,
 
-          // 🔥 thicker = nicer
           width: 26,
 
-          // 🔥 rounded top bars (modern look)
           borderRadius: BorderRadius.circular(10),
 
-          // 🔥 gradient-like effect
-          color: color.withOpacity(0.9),
+          gradient: LinearGradient(
+
+            colors:[
+
+            color.withOpacity(.5),
+            color,
+
+            ],
+
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+
+            ),
         ),
       ],
     );

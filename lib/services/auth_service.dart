@@ -5,42 +5,76 @@ class AuthService {
   final SupabaseClient supabase = Supabase.instance.client;
 
   Future<void> register({
-    required String icNumber,
-    required String fullName,
-    required String email,
-    required String password,
-  }) async {
+  required String icNumber,
+  required String fullName,
+  required String email,
+  required String password,
+}) async {
+
+  try {
+
     final authResult =
         await supabase.auth.signUp(
       email: email,
       password: password,
     );
 
+
     if (authResult.user == null) {
-      throw Exception('Failed to create account');
+      throw Exception(
+        "Failed to create authentication account",
+      );
     }
+
+
+    final userId = authResult.user!.id;
+
 
     final userData = await supabase
         .from('users')
         .insert({
-          'auth_user_id': authResult.user!.id,
+
+          'auth_user_id': userId,
           'name': fullName,
           'email': email,
           'role': 'teacher',
           'status': 'pending',
+
         })
         .select()
         .single();
 
+
+
     await supabase
         .from('teacher_records')
         .insert({
+
           'ic_number': icNumber,
-          'user_id': userData['id'],
+          'user_id': userId,
+          'system_user_id': userData['id'],
           'full_name': fullName,
           'email': email,
+
         });
+
+
+  } on AuthException catch(e){
+
+    throw Exception(
+      e.message,
+    );
+
+
+  } catch(e){
+
+    throw Exception(
+      e.toString(),
+    );
+
   }
+
+}
 
   Future<TeacherModel?> login(
     String email,

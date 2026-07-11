@@ -18,6 +18,16 @@ class LeaveRepository {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  Future<Map<String, dynamic>?> getTeacherProfile(int teacherId) async {
+    final data = await supabase
+        .from('teacher_records')
+        .select('ic_number')
+        .eq('system_user_id', teacherId)
+        .maybeSingle();
+
+    return data;
+  }
+
   Future<void> applyLeave(
       Map<String, dynamic> leaveData) async {
     await supabase

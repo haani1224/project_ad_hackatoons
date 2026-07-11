@@ -397,12 +397,13 @@ class TeacherMainPage extends StatelessWidget {
 
               const SizedBox(height: 4),
 
-              Text(
-                teacher.name,
+             Text(
+                "Teacher ${teacher.name.split(' ').first}",
                 style: const TextStyle(
                   color: Colors.white,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.bold,
                   fontSize: 26,
+                  letterSpacing: 0.3,
                 ),
               ),
 

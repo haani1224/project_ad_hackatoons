@@ -19,7 +19,6 @@ class _TeacherLeaveModuleState
     extends State<TeacherLeaveModule> {
   int index = 0;
 
-  // ✅ FIX: declare GlobalKey properly
   final GlobalKey dashboardKey = GlobalKey();
 
   void goApply() async {
@@ -33,7 +32,6 @@ class _TeacherLeaveModuleState
     );
 
     if (result == true) {
-      // 🔥 refresh dashboard safely
       final state = dashboardKey.currentState;
 
       if (state != null) {
