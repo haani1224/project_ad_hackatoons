@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
+import '../login_page.dart';
 import 'manage_user_page.dart';
 import 'principal_duty_page.dart';
-import 'principal_training_screen.dart';
-import 'principal_records_screen.dart';
+import 'm4_ptraining_screen.dart';
+import 'm1_precords_screen.dart';
 import 'principal_dashboard.dart';
+import 'principal_leave_approval.dart';
+import '../../utils/theme_constants.dart';
+import 'principal_notification_screen.dart';
+import '../../services/app_notification_service.dart';
+import '../../widgets/notification_button.dart';
 
-const Color _navy = Color(0xFF2E4365);
-const Color _navyDark = Color(0xFF1A2F50);
-const Color _navyLight = Color(0xFF3A5A8A);
-const Color _gold = Color(0xFFE59D2C);
-const Color _lightBg = Color(0xFFF0F4FA);
 
-class PrincipalMainPage extends StatelessWidget {
+class PrincipalMainPage extends StatefulWidget {
   const PrincipalMainPage({super.key});
 
+  @override
+  State<PrincipalMainPage> createState() => _PrincipalMainPageState();
+}
+
+class _PrincipalMainPageState extends State<PrincipalMainPage> {
+  
   // Returns day & date in English
   String _getTodayDate() {
     final now = DateTime.now();
@@ -25,14 +33,51 @@ class PrincipalMainPage extends StatelessWidget {
     return '${days[now.weekday % 7]}, ${now.day} ${months[now.month - 1]} ${now.year}';
   }
 
+  void _showMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Logout'),
+                onTap: () async {
+                  final nav = Navigator.of(context);
+
+                  Navigator.pop(context);
+
+                  await AuthService().logout();
+
+                  nav.pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                    (route) => false,
+                  );
+                },
+              ),
+
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _lightBg,
+      backgroundColor: lightBg,
       body: CustomScrollView(
         slivers: [
           // ── Header ──────────────────────────────────────────
-          SliverToBoxAdapter(child: _buildHeader()),
+          SliverToBoxAdapter(child: _buildHeader(context)),
 
           // ── Section label ────────────────────────────────────
           const SliverPadding(
@@ -77,11 +122,17 @@ class PrincipalMainPage extends StatelessWidget {
                   icon: Icons.bar_chart_rounded,
                   color: Color(0xFF22C55E),
                 ),
-                const _ModuleCard(
+                 _ModuleCard(
                   title: 'Leave',
                   subtitle: 'Manage leave requests',
                   icon: Icons.event_note_rounded,
                   color: Color(0xFFF97316),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrincipalLeaveApproval(),
+                    ),
+                  ),
                 ),
                 _ModuleCard(
                   title: 'Tasks',
@@ -96,8 +147,8 @@ class PrincipalMainPage extends StatelessWidget {
                   ),
                 ),
                 _ModuleCard(
-                  title: 'Records',
-                  subtitle: 'Files & documents',
+                  title: "Teacher's Records",
+                  subtitle: "Info & documents",
                   icon: Icons.folder_rounded,
                   color: Color(0xFF0EA5E9),
                   onTap: () => Navigator.push(
@@ -140,7 +191,7 @@ class PrincipalMainPage extends StatelessWidget {
   }
 
   // ── Gradient header with logo + welcome card ──────────────
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Stack(
       children: [
         // Gradient background
@@ -149,7 +200,11 @@ class PrincipalMainPage extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [_navyDark, _navy, _navyLight],
+              colors: [
+                navyDark,
+                Color(0xFF274060),
+                navyLight,
+              ],
             ),
           ),
           child: SafeArea(
@@ -182,8 +237,8 @@ class PrincipalMainPage extends StatelessWidget {
                             'assets/LOGO TADIKA AQIL MIQAIL.jpg',
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Container(
-                              color: _gold.withOpacity(0.2),
-                              child: const Icon(Icons.school, color: _gold, size: 30),
+                              color: gold.withOpacity(0.2),
+                              child: const Icon(Icons.school, color: gold, size: 30),
                             ),
                           ),
                         ),
@@ -198,7 +253,7 @@ class PrincipalMainPage extends StatelessWidget {
                             const Text(
                               'TADIKA',
                               style: TextStyle(
-                                color: _gold,
+                                color: gold,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 3,
@@ -220,14 +275,28 @@ class PrincipalMainPage extends StatelessWidget {
                       ),
 
                       // Notification button
-                      _HeaderButton(
-                        icon: Icons.notifications_none_rounded,
-                        onTap: () {},
+                      NotificationButton(
+                        getCount: () =>
+                            AppNotificationService()
+                                .getUnreadPrincipalNotifications()
+                                .then((list) => list.length),
+
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const PrincipalNotificationScreen(),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(width: 8),
                       _HeaderButton(
-                        icon: Icons.settings_outlined,
-                        onTap: () {},
+                        icon: Icons.menu_rounded,
+                        onTap: () {
+                          _showMenu(context);
+                        },
                       ),
                     ],
                   ),
@@ -280,10 +349,10 @@ class PrincipalMainPage extends StatelessWidget {
                                   vertical: 5,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: _gold.withOpacity(0.18),
+                                  color: gold.withOpacity(0.18),
                                   borderRadius: BorderRadius.circular(30),
                                   border: Border.all(
-                                    color: _gold.withOpacity(0.45),
+                                    color: gold.withOpacity(0.45),
                                   ),
                                 ),
                                 child: Row(
@@ -291,14 +360,14 @@ class PrincipalMainPage extends StatelessWidget {
                                   children: [
                                     const Icon(
                                       Icons.calendar_today_rounded,
-                                      color: _gold,
+                                      color: gold,
                                       size: 12,
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
                                       _getTodayDate(),
                                       style: const TextStyle(
-                                        color: _gold,
+                                        color: gold,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -329,7 +398,7 @@ class PrincipalMainPage extends StatelessWidget {
           right: 0,
           child: ClipPath(
             clipper: _ScoopClipper(),
-            child: Container(height: 36, color: _lightBg),
+            child: Container(height: 36, color: lightBg),
           ),
         ),
       ],
@@ -468,7 +537,7 @@ class _ModuleCard extends StatelessWidget {
                           style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15.5,
-                            color: _navyDark,
+                            color: navyDark,
                             letterSpacing: 0.1,
                           ),
                         ),

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../models/teacher_model.dart';
-import '../../services/teacher_record_service.dart';
-import '../../services/docstorage_service.dart'; // Assumed this exposes StorageService
+import '../../models/m1_record_model.dart';
+import '../../services/m1_record_service.dart';
+import '../../services/m1_docstorage_service.dart'; // Assumed this exposes StorageService
 import '../../widgets/loading_widget.dart';
+import '../../utils/theme_constants.dart';
 
 class PrincipalRecordsScreen extends StatefulWidget {
   const PrincipalRecordsScreen({super.key});
@@ -37,9 +38,21 @@ class _PrincipalRecordsScreenState extends State<PrincipalRecordsScreen> {
     if (_loading) return const Scaffold(body: LoadingWidget());
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Teacher Records')),
+      appBar: AppBar(
+          title: const Text('Teacher Documents'),
+          backgroundColor: navyDark,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
       body: _teachers.isEmpty
-          ? const Center(child: Text('No teacher records.'))
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.folder_off, size: 48, color: Colors.grey),
+                SizedBox(height: 8),
+                Text('No records found'),
+              ],
+            )
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: _teachers.length,
@@ -47,13 +60,15 @@ class _PrincipalRecordsScreenState extends State<PrincipalRecordsScreen> {
               itemBuilder: (_, i) {
                 final t = _teachers[i];
                 return Card(
+                  elevation: 2,
                   child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person),
+                    leading: CircleAvatar(
+                      backgroundColor: navyLight.withOpacity(0.2),
+                      child: const Icon(Icons.person, color: navy),
                     ),
                     title: Text(t.fullName),
                     subtitle: Text('${t.gender} · ${t.maritalStatus}'),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () async {
                       await Navigator.push(
                         context,
@@ -161,7 +176,7 @@ class _TeacherRecordViewScreenState extends State<TeacherRecordViewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final docKeys = ['mykad', 'passport', 'resume', 'academic', 'medical', 'bank'];
+    final docKeys = ['mykad', 'passport', 'resume', 'academic', 'bank'];
     
     bool areAllApproved = true;
     for (var key in docKeys) {
@@ -174,14 +189,53 @@ class _TeacherRecordViewScreenState extends State<TeacherRecordViewScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text("Teacher ${_currentRecord.fullName}'s Profile")),
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        title: const Text('Teacher Profile'),
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8.0),
-            child: Text("Personal Details", style: TextStyle(fontWeight: FontWeight.bold)),
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [navyDark, navy],
+              ),
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _currentRecord.fullName,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: gold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Teacher Profile & Documents',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Text("Personal Information", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+              const SizedBox(height: 16),
 
           _tile('IC Number', _currentRecord.icNumber),
           _tile('Gender', _currentRecord.gender),
@@ -199,7 +253,34 @@ class _TeacherRecordViewScreenState extends State<TeacherRecordViewScreen> {
           _tile('Relationship', _currentRecord.emergencyContactRelationship),
           _tile('Emergency Phone', _currentRecord.emergencyContactPhone),
           const Divider(),
-          
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: areAllApproved
+                  ? Colors.green.shade50
+                  : Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  areAllApproved
+                      ? Icons.verified
+                      : Icons.pending_actions,
+                  color: areAllApproved ? Colors.green : Colors.orange,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    areAllApproved
+                        ? 'All required documents verified'
+                        : 'Verification pending',
+                  ),
+                ),
+              ],
+            ),
+          ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0),
             child: Column(
@@ -296,10 +377,35 @@ class _TeacherRecordViewScreenState extends State<TeacherRecordViewScreen> {
     );
   }
 
-  Widget _tile(String label, String value) => ListTile(
-        title: Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        subtitle: Text(value, style: const TextStyle(fontSize: 15)),
-      );
+  Widget _tile(String label, String value) => Container(
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: navyLight.withOpacity(0.15)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: navyDark.withOpacity(0.6),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _docViewTile(BuildContext context, String label, String? path, String docType) {
     final docData = _currentRecord.documentStatuses[docType] as Map<String, dynamic>?;
@@ -310,78 +416,176 @@ class _TeacherRecordViewScreenState extends State<TeacherRecordViewScreen> {
     if (status == 'approved') statusColor = Colors.green;
     if (status == 'change_requested') statusColor = Colors.red;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          title: Text(label),
-          subtitle: Row(
-            children: [
-              if (path == null)
-                const Text('Not Submitted', style: TextStyle(color: Colors.grey))
-              else ...[
-                Text(
-                  status == 'approved'
-                      ? 'Approved ✓'
-                      : status
-                          .replaceAll('_', ' ')
-                          .split(' ')
-                          .map((word) => word.isNotEmpty
-                              ? '${word[0].toUpperCase()}${word.substring(1)}'
-                              : '')
-                          .join(' '),
-                  style: TextStyle(
-                    color: status == 'change_requested' ? Colors.red.shade900 : statusColor, 
-                    fontWeight: FontWeight.bold, 
-                    fontSize: 12,
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: path == null
+          ? null
+          : () async {
+              try {
+                final urlString = await _storageSvc.getDownloadUrl(path);
+                final Uri url = Uri.parse(urlString);
+                await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+              } catch (e) {
+                if (!context.mounted) return;
+
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Cannot Open File'),
+                    content: Text('Error system details: $e'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
+                      )
+                    ],
                   ),
-                ),
-              ],
-            ],
+                );
+              }
+            },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: navyLight.withOpacity(0.15),
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(Icons.check_circle, color: status == 'approved' ? Colors.green : (path == null ? Colors.grey.shade300 : Colors.grey)),
-                onPressed: (path == null) ? null : () => _updateSingleDocInDatabase(docType, 'approved'),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: navyLight.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.folder_open_rounded,
+                  color: navy,
+                ),
               ),
-              IconButton(
-                icon: Icon(Icons.cancel, color: status == 'change_requested' ? Colors.red : (path == null ? Colors.grey.shade300 : Colors.grey)),
-                onPressed: (path == null) ? null : () {
-                  _showRejectDocDialog(context, label, docType);
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      path == null
+                          ? 'Not Submitted'
+                          : status == 'approved'
+                              ? 'Approved ✓'
+                              : status == 'change_requested'
+                                  ? 'Changes Requested'
+                                  : 'Pending Review',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              PopupMenuButton<String>(
+                onSelected: (value) async {
+                  if (value == 'download') {
+                    if (path == null) return;
+
+                    try {
+                      final urlString = await _storageSvc.getDownloadUrl(path!);
+                      final Uri url = Uri.parse(urlString);
+                      await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('Download Failed'),
+                            content: Text('$e'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('OK'),
+                              )
+                            ],
+                          ),
+                        );
+                    }
+                  }
+
+                  if (value == 'approve') {
+                    await _updateSingleDocInDatabase(docType, 'approved');
+                  }
+
+                  if (value == 'request') {
+                    _showRejectDocDialog(context, label, docType);
+                  }
+                },
+                itemBuilder: (context) {
+                  final isApproved = status == 'approved';
+
+                  return [
+                    if (path != null)
+                      const PopupMenuItem(
+                        value: 'download',
+                        child: Text('Download'),
+                      ),
+
+                    if (!isApproved)
+                      const PopupMenuItem(
+                        value: 'approve',
+                        child: Text('Approve'),
+                      ),
+
+                    if (path != null)
+                      const PopupMenuItem(
+                        value: 'request',
+                        child: Text('Request Changes'),
+                      ),
+                  ];
                 },
               ),
             ],
           ),
-          onTap: path == null ? null : () async {
-            try {
-              // 🟢 FIXED: Successfully resolves URL now via initialized local _storageSvc
-              final urlString = await _storageSvc.getDownloadUrl(path);
-              final Uri url = Uri.parse(urlString);
-              await launchUrl(url, mode: LaunchMode.inAppBrowserView);
-            } catch (e) {
-              if (!context.mounted) return;
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Cannot Open File'),
-                  content: Text('Error system details: $e'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))
-                  ],
+
+          if (status == 'change_requested' && reason != null)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 16,
+                bottom: 8,
+                right: 16,
+                top: 12,
+              ),
+              child: Text(
+                '⚠️ Correction needed: "$reason"',
+                style: TextStyle(
+                  color: Colors.red.shade900,
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
                 ),
-              );
-            }
-          },
+              ),
+            ),
+          ],
         ),
-        if (status == 'change_requested' && reason != null)
-          Padding(
-            padding: const EdgeInsets.only(left: 16, bottom: 8, right: 16),
-            child: Text('⚠️ Correction needed: "$reason"', style: TextStyle(color: Colors.red.shade900, fontSize: 13, fontStyle: FontStyle.italic)),
-          ),
-        const Divider(height: 1),
-      ],
+      ),
     );
   }
 }

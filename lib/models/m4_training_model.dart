@@ -7,6 +7,7 @@ class TrainingOption {
   final double durationHours;
   final String mode;
   final String venue;
+  final String? meetingLink;
   final DateTime? createdAt;
 
   const TrainingOption({
@@ -18,6 +19,7 @@ class TrainingOption {
     required this.durationHours,
     required this.mode,
     required this.venue,
+    this.meetingLink,
     this.createdAt,
   });
 
@@ -30,6 +32,7 @@ class TrainingOption {
         durationHours: (map['duration_hours'] as num).toDouble(),
         mode: map['mode'] as String,
         venue: map['venue'] as String,
+        meetingLink: map['meeting_link'] as String?,
         createdAt: map['created_at'] != null
             ? DateTime.parse(map['created_at'] as String)
             : null,
@@ -39,16 +42,18 @@ class TrainingOption {
         'title': title,
         'category': category,
         'organizer': organizer,
-        'training_date': trainingDate.toIso8601String().substring(0, 10),
+        'training_date': trainingDate.toIso8601String(),
         'duration_hours': durationHours,
         'mode': mode,
         'venue': venue,
+        'meeting_link': meetingLink,
       };
 }
 
 class TrainingRecord {
   final String id;
-  final int teacherId;
+  final int? teacherId;
+  final String teacherUuid;
   final int trainingOptionId;
   // Flattened from training_options join — read only, never sent to DB
   final String title;
@@ -58,9 +63,11 @@ class TrainingRecord {
   final double durationHours;
   final String mode;
   final String venue;
+  final String? meetingLink;
   // Teacher's own submission fields
   final String? reflection;
   final String status;
+  final String? rejectionReason;
   final String? certificateUrl;
   final List<String> photoUrls;
   // Joined from teacher_records — read only
@@ -69,7 +76,8 @@ class TrainingRecord {
 
   const TrainingRecord({
     required this.id,
-    required this.teacherId,
+    this.teacherId,
+    required this.teacherUuid,
     required this.trainingOptionId,
     required this.title,
     required this.category,
@@ -78,8 +86,10 @@ class TrainingRecord {
     required this.durationHours,
     required this.mode,
     required this.venue,
+    this.meetingLink,
     this.reflection,
     required this.status,
+    this.rejectionReason,
     this.certificateUrl,
     this.photoUrls = const [],
     this.teacherName,
@@ -101,7 +111,8 @@ class TrainingRecord {
 
     return TrainingRecord(
       id: map['id'] as String,
-      teacherId: map['teacher_id'] as int,
+      teacherId: map['teacher_id'] as int?,
+      teacherUuid: map['teacher_uuid'] as String? ?? '',
       trainingOptionId: map['training_option_id'] as int,
       // Pull details from joined option; fall back to flat columns for safety
       title: opt?['title'] as String? ?? map['title'] as String? ?? '',
@@ -117,8 +128,10 @@ class TrainingRecord {
               0,
       mode: opt?['mode'] as String? ?? map['mode'] as String? ?? '',
       venue: opt?['venue'] as String? ?? map['venue'] as String? ?? '',
+      meetingLink: opt?['meeting_link'] as String? ?? map['meeting_link'] as String?,
       reflection: map['reflection'] as String?,
       status: map['status'] as String? ?? 'pending',
+      rejectionReason: map['rejection_reason'] as String?,
       certificateUrl: map['certificate_url'] as String?,
       photoUrls: List<String>.from(map['photo_urls'] ?? []),
       teacherName: teacherName,
@@ -130,18 +143,18 @@ class TrainingRecord {
 
   // Only columns that belong in the trainings table — no denormalized data
   Map<String, dynamic> toMap() => {
-        if (id.isNotEmpty) 'id': id,
-        'teacher_id': teacherId,
-        'training_option_id': trainingOptionId,
-        'reflection': reflection,
-        'status': status,
-        'certificate_url': certificateUrl,
-        'photo_urls': photoUrls,
-      };
+    if (id.isNotEmpty) 'id': id,
+    if (teacherId != null) 'teacher_id': teacherId,
+    'training_option_id': trainingOptionId,
+    'reflection': reflection,
+    'status': status,
+    'rejection_reason': rejectionReason,
+    'certificate_url': certificateUrl,
+    'photo_urls': photoUrls,
+  };
 
   bool get isPending => status == 'pending';
   bool get isApproved => status == 'approved';
   bool get isRejected => status == 'rejected';
   bool get isCompleted => status == 'completed';
 }
-

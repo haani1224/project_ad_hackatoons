@@ -1,15 +1,24 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/teacher_model.dart';
+import '../models/m1_record_model.dart';
 
 class TeacherRecordService {
   final _client = Supabase.instance.client;
 
   Future<TeacherRecord?> getMyRecord(String userId) async {
+    // FIX #10: Removed print(allRecords) that leaked all teachers' personal data
+
+    print("auth uid = ${Supabase.instance.client.auth.currentUser?.id}");
+    print("passed uid = $userId");
+
     final data = await _client
         .from('teacher_records')
         .select()
         .eq('user_id', userId)
         .maybeSingle();
+
+    print("FILTERED RESULT:");
+    print(data);
+
     return data == null ? null : TeacherRecord.fromMap(data);
   }
 
@@ -18,7 +27,14 @@ class TeacherRecordService {
         .from('teacher_records')
         .select()
         .order('full_name');
-    return (data as List).map((e) => TeacherRecord.fromMap(e)).toList();
+
+    print("RAW teacher_records response: $data");
+
+    if (data is! List) {
+      throw Exception("Unexpected response from Supabase: $data");
+    }
+
+    return data.map((e) => TeacherRecord.fromMap(e)).toList();
   }
 
   Future<void> upsertTeacherRecord(TeacherRecord record) async {
@@ -26,7 +42,7 @@ class TeacherRecordService {
         .from('teacher_records')
         .upsert(record.toMap(), onConflict: 'ic_number');
   }
-  
+
   Future<void> updateSingleDocStatus({
     required String icNumber,
     required String docType,
@@ -41,23 +57,36 @@ class TeacherRecordService {
         .maybeSingle();
 
     if (response == null) {
-      response = await _client
+      // FIX #7: Use exact match in fallback instead of broad ilike to avoid multi-row ambiguity
+      final fallbackResults = await _client
           .from('teacher_records')
           .select('document_statuses, user_id')
-          .ilike('ic_number', '%$cleanIc%')
-          .maybeSingle();
+          .ilike('ic_number', cleanIc)
+          .limit(2);
+
+      if (fallbackResults.isEmpty) {
+        throw Exception("No teacher record found in database matching IC: '$cleanIc'.");
+      }
+      if (fallbackResults.length > 1) {
+        throw Exception("Ambiguous IC match: multiple records found for '$cleanIc'. Cannot update safely.");
+      }
+      response = fallbackResults.first;
     }
 
-    if (response == null) {
-      throw Exception("No teacher record found in database matching IC: '$cleanIc'.");
-    }
+    // FIX #6: Safely handle user_id regardless of whether it comes back as int or String
+    final targetUserId = response['user_id'].toString();
 
-    final String targetUserId = response['user_id'];
     Map<String, dynamic> currentStatuses = Map<String, dynamic>.from(response['document_statuses'] ?? {});
-    currentStatuses[docType] = {
-      'status': status,
-      'reason': reason,
-    };
+
+    if (status == null) {
+      // FIX: If status is null (e.g. after delete), remove the doc entry entirely
+      currentStatuses.remove(docType);
+    } else {
+      currentStatuses[docType] = {
+        'status': status,
+        'reason': reason,
+      };
+    }
 
     final updateResponse = await _client
         .from('teacher_records')
@@ -74,7 +103,7 @@ class TeacherRecordService {
     final cleanIc = icNumber.trim();
     final response = await _client
         .from('teacher_records')
-        .select('user_id')
+        .select('user_id, document_statuses') // FIX #9: also fetch existing statuses
         .ilike('ic_number', '%$cleanIc%')
         .maybeSingle();
 
@@ -82,15 +111,18 @@ class TeacherRecordService {
       throw Exception("Approve All failed: Could not find teacher record matching IC '$cleanIc'.");
     }
 
-    final String targetUserId = response['user_id'];
-    Map<String, dynamic> approvedMap = {};
+    // FIX #6: Safely coerce user_id to String
+    final targetUserId = response['user_id'].toString();
+
+    // FIX #9: Merge approvals into existing statuses instead of overwriting everything
+    Map<String, dynamic> mergedStatuses = Map<String, dynamic>.from(response['document_statuses'] ?? {});
     for (var type in docTypes) {
-      approvedMap[type] = {'status': 'approved', 'reason': null};
+      mergedStatuses[type] = {'status': 'approved', 'reason': null};
     }
 
     final updateResponse = await _client
         .from('teacher_records')
-        .update({'document_statuses': approvedMap})
+        .update({'document_statuses': mergedStatuses})
         .eq('user_id', targetUserId)
         .select();
 
@@ -122,19 +154,23 @@ class TeacherRecordService {
         .maybeSingle();
 
     Map<String, dynamic> currentStatuses = Map<String, dynamic>.from(record?['document_statuses'] ?? {});
-    
+
+    // FIX #8: Use a local variable instead of reassigning the parameter
+    final String? resolvedPath;
+
     if (filePath == null || filePath.isEmpty) {
       currentStatuses.remove(docType);
-      filePath = null;
+      resolvedPath = null;
     } else {
       currentStatuses[docType] = {
         'status': 'pending',
         'reason': null,
       };
+      resolvedPath = filePath;
     }
 
     await _client.from('teacher_records').update({
-      dbColumn: filePath,
+      dbColumn: resolvedPath,
       'document_statuses': currentStatuses,
     }).eq('user_id', userId);
   }

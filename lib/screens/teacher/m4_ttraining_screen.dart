@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../models/training_model.dart';
-import '../../models/teacher_model.dart';
-import '../../services/training_service.dart';
-import '../../services/docstorage_service.dart';
+import '../../models/m1_record_model.dart';
+import '../../services/m1_docstorage_service.dart';
+import '../../models/m4_training_model.dart';
+import '../../services/m4_training_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../widgets/loading_widget.dart';
+import '../../utils/theme_constants.dart';
+import '../../services/app_notification_service.dart';
 
 // ── 1. Main list screen ───────────────────────────────────────────────────────
 
 class TeacherTrainingScreen extends StatefulWidget {
-  final int teacherId;
+  final String teacherId;
 
   const TeacherTrainingScreen({
     super.key,
@@ -26,48 +28,59 @@ class TeacherTrainingScreen extends StatefulWidget {
 
 class _TeacherTrainingScreenState extends State<TeacherTrainingScreen> {
   final _svc = TrainingService();
-  final _docStorageSvc = StorageService();
+  // final _docStorageSvc = StorageService();
   List<TrainingRecord> _trainings = [];
   int _approvedCount = 0;
   bool _loading = true;
 
-  String get _uid => Supabase.instance.client.auth.currentUser!.id;
+  // String get _uid => Supabase.instance.client.auth.currentUser!.id;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _checkTrainingReminder();
+  }
+
+  Future<void> _checkTrainingReminder() async {
+    final today = DateTime.now();
+    for (final t in _trainings) {
+      if (t.trainingDate.year == today.year &&
+          t.trainingDate.month == today.month &&
+          t.trainingDate.day == today.day &&
+          t.isApproved) {
+
+        await AppNotificationService().createNotification(
+          userId: widget.teacherId,
+          message:
+              "Reminder: Your training '${t.title}' is scheduled today.",
+          type: "training",
+          referenceId: t.id.toString(),
+        );
+      }
+    }
   }
 
   Future<void> _load() async {
-  try {
-    print('Loading trainings...');
+    setState(() => _loading = true);   // ← always reset at start of reload
+    try {
+      final results = await Future.wait([
+        _svc.getMyTrainings(widget.teacherId),
+        _svc.getApprovedCountForYear(widget.teacherId, DateTime.now().year),
+      ]);
 
-    final results = await Future.wait([
-      _svc.getMyTrainings(_uid),
-      _svc.getApprovedCountForYear(_uid, DateTime.now().year),
-    ]);
+      if (!mounted) return;
 
-    print('Trainings loaded');
-    print('Count: ${results[0]}');
-    print('Approved: ${results[1]}');
-
-    if (mounted) {
       setState(() {
         _trainings = results[0] as List<TrainingRecord>;
         _approvedCount = results[1] as int;
         _loading = false;
       });
-    }
-  } catch (e, s) {
-    print('TeacherTrainingScreen error: $e');
-    print(s);
-
-    if (mounted) {
-      setState(() => _loading = false);
+    } catch (e, s) {
+      debugPrint('LOAD ERROR: $e\n$s');
+      if (mounted) setState(() => _loading = false);
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -76,14 +89,20 @@ class _TeacherTrainingScreenState extends State<TeacherTrainingScreen> {
     final bool meetsQuota = _approvedCount >= 3;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Training')),
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        title: const Text('My training'),
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: const Text('Apply for Training'),
         onPressed: () async {
           await Navigator.push(context,
               MaterialPageRoute(
-                  builder: (_) => SelectTrainingScreen(teacherId: _uid)));
+                  builder: (_) => SelectTrainingScreen(teacherId: widget.teacherId)));
           _load();
         },
       ),
@@ -216,9 +235,11 @@ class SelectTrainingScreen extends StatefulWidget {
 
 class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
   final _svc = TrainingService();
-  final _docStorageSvc = StorageService();
+  final _notificationSvc = AppNotificationService();
   List<TrainingOption> _options = [];
   bool _loading = true;
+
+  // final String _uid = Supabase.instance.client.auth.currentUser!.id;
 
   @override
   void initState() {
@@ -227,8 +248,8 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
   }
 
   Future<void> _load() async {
-    final data =
-        await _svc.getAvailableTrainingOptions(widget.teacherId);
+    final data = await _svc.getAvailableTrainingOptions(widget.teacherId);
+
     setState(() {
       _options = data;
       _loading = false;
@@ -238,8 +259,15 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
   Future<void> _apply(TrainingOption option) async {
     try {
       await _svc.applyForTraining(
-        teacherId: widget.teacherId.toString(),
+        teacherUuid: widget.teacherId,      // ✅ matches new service param
         trainingOptionId: option.id.toString(),
+      );
+      // notify principal
+      await _notificationSvc.notifyPrincipal(
+        message:
+            "A teacher has applied for '${option.title}'. Please review the application.",
+        type: "training",
+        referenceId: option.id.toString(),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -258,7 +286,13 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Available Trainings')),
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        title: const Text('Available Training'),
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: _loading
           ? const LoadingWidget()
           : _options.isEmpty
@@ -290,6 +324,32 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
                             Text(
                                 '${DateFormat('d MMM yyyy').format(o.trainingDate)} · ${o.durationHours}h'),
                             Text('${o.organizer} @ ${o.venue}'),
+                            if (o.meetingLink != null &&
+                              o.meetingLink!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+
+                            InkWell(
+                              onTap: () async {
+                                await launchUrl(
+                                  Uri.parse(o.meetingLink!),
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              },
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.link, size: 18),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Join Training',
+                                    style: TextStyle(
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                             const SizedBox(height: 12),
                             SizedBox(
                               width: double.infinity,
@@ -356,6 +416,12 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
       certificateUrl: _certPath, // null is fine
       photoUrls: _photoPaths,
     );
+    await AppNotificationService().notifyPrincipal(
+      message:
+          "A training report for '${widget.training.title}' has been submitted for review.",
+      type: "training",
+      referenceId: widget.training.id.toString(),
+    );
     setState(() => _saving = false);
     if (mounted) {
       ScaffoldMessenger.of(context)
@@ -364,6 +430,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
     }
   }
 
+  // ── Fix teacher-side #2: nicer status banners + a small icon accent ──
   Widget _completedView(TrainingRecord t) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -378,7 +445,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
             style: Theme.of(context)
                 .textTheme
                 .titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold)),
+                ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
@@ -397,7 +464,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+                  ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -418,7 +485,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+                  ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
           const SizedBox(height: 8),
           GridView.builder(
             shrinkWrap: true,
@@ -460,28 +527,105 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final t = widget.training;
+    final canJoinMeeting = t.isApproved || t.isCompleted;
+
     return Scaffold(
-      appBar: AppBar(title: Text(t.title, overflow: TextOverflow.ellipsis)),
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        // Fix teacher-side #2: previously had no title at all.
+        title: Text(t.title,
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Training info
-            _infoRow('Status', t.status.toUpperCase()),
-            _infoRow('Category', t.category),
-            _infoRow('Organizer', t.organizer),
-            _infoRow('Date', DateFormat('d MMM yyyy').format(t.trainingDate)),
-            _infoRow('Duration', '${t.durationHours} hours'),
-            _infoRow('Mode', t.mode),
-            _infoRow('Venue', t.venue),
+            // Fix teacher-side #2: training info wrapped in a styled card
+            // instead of bare rows, matching the rest of the app's look.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: navy.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: navy.withOpacity(0.15)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _infoRow('Status', t.status.toUpperCase()),
+                  _infoRow('Category', t.category),
+                  _infoRow('Organizer', t.organizer),
+                  _infoRow('Date', DateFormat('d MMM yyyy').format(t.trainingDate)),
+                  _infoRow('Duration', '${t.durationHours} hours'),
+                  _infoRow('Mode', t.mode),
+                  _infoRow('Venue', t.venue),
+                ],
+              ),
+            ),
+
+            // ── Fix teacher-side #1: meeting link is now disabled
+            // (greyed out, no tap action) until the application is
+            // approved or completed, instead of always being clickable. ──
+            if (t.mode != 'Physical' &&
+                t.meetingLink != null &&
+                t.meetingLink!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Opacity(
+                opacity: canJoinMeeting ? 1.0 : 0.5,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: canJoinMeeting
+                        ? Colors.blue.withOpacity(0.06)
+                        : Colors.grey.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: canJoinMeeting
+                            ? Colors.blue.withOpacity(0.25)
+                            : Colors.grey.withOpacity(0.3)),
+                  ),
+                  child: ListTile(
+                    enabled: canJoinMeeting,
+                    leading: Icon(Icons.video_call,
+                        color: canJoinMeeting ? Colors.blue : Colors.grey),
+                    title: Text('Join Online Session',
+                        style: TextStyle(
+                            color: canJoinMeeting ? navyDark : Colors.grey,
+                            fontWeight: FontWeight.w600)),
+                    subtitle: Text(
+                      canJoinMeeting
+                          ? 'Tap to open the meeting link'
+                          : 'Available once your application is approved',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    trailing: Icon(Icons.open_in_new,
+                        color: canJoinMeeting ? Colors.blue : Colors.grey),
+                    onTap: canJoinMeeting
+                        ? () async {
+                            await launchUrl(
+                              Uri.parse(t.meetingLink!),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        : null,
+                  ),
+                ),
+              ),
+            ],
+
             const Divider(height: 32),
 
             // State-based content
             if (t.isRejected)
               _statusBanner(
                 'Application Not Approved',
-                'Please contact the principal for more information.',
+                t.rejectionReason?.isNotEmpty == true
+                    ? t.rejectionReason!
+                    : 'Your application was rejected. Please contact the principal for more information.',
                 Colors.red,
                 Icons.cancel_outlined,
               )
@@ -500,7 +644,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                      ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
               const SizedBox(height: 4),
               Text('What did you learn from this training?',
                   style: TextStyle(color: Colors.grey.shade600)),
@@ -516,7 +660,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                      ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
               const SizedBox(height: 4),
               Text('Upload your completion certificate if available.',
                   style: TextStyle(color: Colors.grey.shade600)),
@@ -548,7 +692,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                       tooltip: _certPath == null ? 'Upload' : 'Replace',
                       onPressed: () async {
                         final path = await _docStorageSvc.uploadTeacherDocument(
-                            userId: t.teacherId.toString(),
+                            userId: t.teacherUuid, 
                             docType: 'cert_${t.id}',
                             oldPath: _certPath);
                         if (path != null) setState(() => _certPath = path);
@@ -563,7 +707,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                      ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
               const SizedBox(height: 4),
               Text('At least one photo required as proof of attendance.',
                   style: TextStyle(color: Colors.grey.shade600)),
@@ -584,7 +728,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                     return InkWell(
                       onTap: () async {
                         final path = await _docStorageSvc.uploadTeacherDocument(
-                            userId: t.teacherId.toString(),
+                            userId: t.teacherUuid,
                             docType: 'img_${t.id}_$index');
                         if (path != null) {
                           setState(() => _photoPaths.add(path));
@@ -668,7 +812,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                         fontWeight: FontWeight.w600,
                         color: Colors.grey,
                         fontSize: 13))),
-            Expanded(child: Text(value)),
+            Expanded(child: Text(value, style: const TextStyle(color: navyDark))),
           ],
         ),
       );

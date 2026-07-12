@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/duty_task_model.dart';
 import '../models/teacher_model.dart';
@@ -346,17 +347,36 @@ class DutyService {
   }
 
   Future<String> _uploadImageToStorage(XFile image) async {
-    final fileExt = image.path.split('.').last;
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+    const bucketName = 'duty-proofs';
+
+    final extension = image.path.contains('.')
+        ? image.path.split('.').last.toLowerCase()
+        : 'jpg';
+
+    final fileName =
+        '${DateTime.now().microsecondsSinceEpoch}.$extension';
+
     final filePath = 'proofs/$fileName';
 
-    await supabase.storage.from('duty-proofs').upload(
+    debugPrint('Uploading to bucket: $bucketName');
+    debugPrint('Uploading to path: $filePath');
+
+    await supabase.storage.from(bucketName).upload(
           filePath,
           File(image.path),
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: const FileOptions(
+            upsert: false,
+            contentType: 'image/jpeg',
+          ),
         );
 
-    return supabase.storage.from('duty-proofs').getPublicUrl(filePath);
+    final imageUrl = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+
+    debugPrint('Uploaded URL: $imageUrl');
+
+    return imageUrl;
   }
 
   String _getDayName(DateTime date) {
