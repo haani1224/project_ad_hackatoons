@@ -8,12 +8,20 @@ import 'm1_precords_screen.dart';
 import 'principal_dashboard.dart';
 import 'principal_leave_approval.dart';
 import '../../utils/theme_constants.dart';
+import 'principal_notification_screen.dart';
+import '../../services/app_notification_service.dart';
+import '../../widgets/notification_button.dart';
 
 
-class PrincipalMainPage extends StatelessWidget {
+class PrincipalMainPage extends StatefulWidget {
   const PrincipalMainPage({super.key});
-  
 
+  @override
+  State<PrincipalMainPage> createState() => _PrincipalMainPageState();
+}
+
+class _PrincipalMainPageState extends State<PrincipalMainPage> {
+  
   // Returns day & date in English
   String _getTodayDate() {
     final now = DateTime.now();
@@ -61,7 +69,6 @@ class PrincipalMainPage extends StatelessWidget {
       },
     );
   }
-  
 
   @override
   Widget build(BuildContext context) {
@@ -268,9 +275,21 @@ class PrincipalMainPage extends StatelessWidget {
                       ),
 
                       // Notification button
-                      _HeaderButton(
-                        icon: Icons.notifications_none_rounded,
-                        onTap: () {},
+                      NotificationButton(
+                        getCount: () =>
+                            AppNotificationService()
+                                .getUnreadPrincipalNotifications()
+                                .then((list) => list.length),
+
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const PrincipalNotificationScreen(),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(width: 8),
                       _HeaderButton(
