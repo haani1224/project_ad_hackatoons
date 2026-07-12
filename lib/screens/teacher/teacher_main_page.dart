@@ -154,9 +154,18 @@ class _TeacherMainPageState extends State<TeacherMainPage> {
         record.docBankStatementUrl == null ||
         record.docBankStatementUrl!.isEmpty;
 
-    final isChangeRequested =
-      (record.documentStatuses is Map) &&
-      record.documentStatuses['status'] == "change_requested";
+     bool isChangeRequested = false;
+
+    if (record.documentStatuses is Map<String, dynamic>) {
+      for (final doc in record.documentStatuses.values) {
+        if (doc is Map<String, dynamic>) {
+          if (doc['status'] == 'change_requested') {
+            isChangeRequested = true;
+            break;
+          }
+        }
+      }
+    }
 
     return hasMissingFiles || isChangeRequested;
   }
@@ -188,7 +197,7 @@ class _TeacherMainPageState extends State<TeacherMainPage> {
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
-                          "Some required documents are missing. Please upload them in My Profile.",
+                          "Some documents require your attention. Please check My Profile and update the required files.",
                           style: TextStyle(fontSize: 13),
                         ),
                       ),

@@ -131,6 +131,38 @@ class AppNotificationService {
     return List<Map<String,dynamic>>.from(data);
   }
 
+  Future<bool> hasPendingDocumentNotification(String teacherId) async {
+    final result = await _supabase
+        .from('notifications')
+        .select()
+        .eq('reference_id', teacherId)
+        .eq('type', 'document_submission')
+        .eq('is_read', false)
+        .maybeSingle();
+
+    return result != null;
+  }
+
+  Future<void> notifyDocumentSubmission({
+    required String teacherId,
+    required String teacherName,
+  }) async {
+
+    final alreadyNotified =
+        await hasPendingDocumentNotification(teacherId);
+
+    if (alreadyNotified) {
+      return;
+    }
+
+    await notifyPrincipal(
+      message:
+          "$teacherName has submitted documents for verification.",
+      type: "document_submission",
+      referenceId: teacherId,
+    );
+  }
+
   // ==========================================================
   // Teacher submits training application
   // ==========================================================
