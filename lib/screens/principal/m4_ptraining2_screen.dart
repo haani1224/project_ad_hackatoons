@@ -3,9 +3,29 @@ import 'package:intl/intl.dart';
 import '../../utils/constants.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
-import '../../models/m4_training_model.dart';         
+import '../../models/m4_training_model.dart';
 import '../../services/m4_training_service.dart';
 import '../../utils/theme_constants.dart';
+
+// ── Fix #5: some existing training options were saved with a category
+// (or mode) value that is no longer part of AppConstants.trainingCategories
+// (e.g. "Technology" was removed/renamed). DropdownButtonFormField throws
+// an assertion if `value` isn't found among `items`. This helper builds
+// the item list from the canonical list *plus* the current value if it's
+// missing, so editing an "old" option never crashes. ──
+List<DropdownMenuItem<String>> _safeDropdownItems(
+    List<String> canonical, String currentValue) {
+  final values = [
+    ...canonical,
+    if (currentValue.isNotEmpty && !canonical.contains(currentValue))
+      currentValue,
+  ];
+  return values
+      .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+      .toList();
+}
+
+const List<String> _trainingModes = ['Online', 'Physical', 'Hybrid'];
 
 class AddTrainingOptionScreen extends StatefulWidget {
   const AddTrainingOptionScreen({super.key});
@@ -22,11 +42,9 @@ class _AddTrainingOptionScreenState extends State<AddTrainingOptionScreen> {
   final _venueCtrl = TextEditingController();
   final _durationCtrl = TextEditingController();
   final _meetingLinkCtrl = TextEditingController();
-  
-  // 🟢 FIXED: Extracted date display out of build() context to prevent UI rendering leaks
-  final _dateDisplayCtrl = TextEditingController(); 
 
-  // 🟢 FIXED: Instantiated the isolated specialized service class
+  final _dateDisplayCtrl = TextEditingController();
+
   final _trainingSvc = TrainingService();
 
   String _category = AppConstants.trainingCategories.first;
@@ -79,6 +97,8 @@ class _AddTrainingOptionScreenState extends State<AddTrainingOptionScreen> {
       );
 
       await _trainingSvc.createTrainingOption(newOption);
+      // TODO(notifications): notify all teachers that a new training
+      // option was published.
 
       if (mounted) Navigator.pop(context);
     } finally {
@@ -114,9 +134,8 @@ class _AddTrainingOptionScreenState extends State<AddTrainingOptionScreen> {
                     labelText: 'Category',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12))),
-                items: AppConstants.trainingCategories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
+                items: _safeDropdownItems(
+                    AppConstants.trainingCategories, _category),
                 onChanged: (v) => setState(() => _category = v!),
               ),
               const SizedBox(height: 12),
@@ -142,7 +161,6 @@ class _AddTrainingOptionScreenState extends State<AddTrainingOptionScreen> {
                 },
                 child: IgnorePointer(
                   child: TextFormField(
-                    // 🟢 FIXED: Connected to decoupled layout reference controller
                     controller: _dateDisplayCtrl,
                     decoration: InputDecoration(
                       labelText: 'Training Date',
@@ -169,9 +187,7 @@ class _AddTrainingOptionScreenState extends State<AddTrainingOptionScreen> {
                     labelText: 'Mode',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12))),
-                items: ['Online', 'Physical', 'Hybrid']
-                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                    .toList(),
+                items: _safeDropdownItems(_trainingModes, _mode),
                 onChanged: (v) => setState(() => _mode = v!),
               ),
               const SizedBox(height: 12),
@@ -220,19 +236,25 @@ class EditTrainingOptionScreen extends StatefulWidget {
       _EditTrainingOptionScreenState();
 }
 
+// ── Fix #4: rebuilt to match AddTrainingOptionScreen's UI (same field
+// widgets, spacing, colors, conditional meeting-link field, loading
+// button) instead of the old plain/undecorated form. Existing values are
+// still prefilled in initState, same as before. ──
 class _EditTrainingOptionScreenState extends State<EditTrainingOptionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
-  final _orgCtrl = TextEditingController();
+  final _organizerCtrl = TextEditingController();
   final _venueCtrl = TextEditingController();
   final _durationCtrl = TextEditingController();
-  final _linkCtrl = TextEditingController();
+  final _meetingLinkCtrl = TextEditingController();
+  final _dateDisplayCtrl = TextEditingController();
+
   final _svc = TrainingService();
 
-  String _category = '';
-  String _mode = '';
+  late String _category;
+  late String _mode;
   DateTime? _date;
-  final _dateCtrl = TextEditingController();
+  bool _saving = false;
 
   @override
   void initState() {
@@ -240,120 +262,188 @@ class _EditTrainingOptionScreenState extends State<EditTrainingOptionScreen> {
     final o = widget.option;
 
     _titleCtrl.text = o.title;
-    _orgCtrl.text = o.organizer;
+    _organizerCtrl.text = o.organizer;
     _venueCtrl.text = o.venue;
     _durationCtrl.text = o.durationHours.toString();
-    _linkCtrl.text = o.meetingLink ?? '';
+    _meetingLinkCtrl.text = o.meetingLink ?? '';
     _category = o.category;
     _mode = o.mode;
     _date = o.trainingDate;
-    _dateCtrl.text = DateFormat('d MMM yyyy').format(o.trainingDate);
+    _dateDisplayCtrl.text = DateFormat('d MMM yyyy').format(o.trainingDate);
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _organizerCtrl.dispose();
+    _venueCtrl.dispose();
+    _durationCtrl.dispose();
+    _meetingLinkCtrl.dispose();
+    _dateDisplayCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || _date == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields and select a date.')),
+      );
+      return;
+    }
 
-    final updated = TrainingOption(
-      id: widget.option.id,
-      title: _titleCtrl.text,
-      category: _category,
-      organizer: _orgCtrl.text,
-      trainingDate: _date!,
-      durationHours: double.tryParse(_durationCtrl.text) ?? 1,
-      mode: _mode,
-      venue: _venueCtrl.text,
-      meetingLink: _linkCtrl.text.trim().isEmpty
-        ? null
-        : _linkCtrl.text.trim(),
+    final duration = double.tryParse(_durationCtrl.text);
+    if (duration == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Duration must be a valid number')),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      final updated = TrainingOption(
+        id: widget.option.id,
+        title: _titleCtrl.text.trim(),
+        category: _category,
+        organizer: _organizerCtrl.text.trim(),
+        trainingDate: _date!,
+        durationHours: duration,
+        mode: _mode,
+        venue: _venueCtrl.text.trim(),
+        meetingLink: _meetingLinkCtrl.text.trim().isEmpty
+            ? null
+            : _meetingLinkCtrl.text.trim(),
       );
 
-    await _svc.updateTrainingOption(updated);
+      await _svc.updateTrainingOption(updated);
+      // TODO(notifications): notify existing applicants that the training
+      // details (date/venue/link/etc.) were changed.
 
-    if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Edit Training Option")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        title: const Text('Edit Training Option'),
+        backgroundColor: navyDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: "Title"),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-
-              TextFormField(
-                controller: _orgCtrl,
-                decoration: const InputDecoration(labelText: "Organizer"),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-
+              CustomTextField(
+                  label: 'Training Title',
+                  controller: _titleCtrl,
+                  validator: (v) => v!.isEmpty ? 'Required' : null),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: _category,
-                decoration: const InputDecoration(labelText: "Category"),
-                items: AppConstants.trainingCategories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
+                decoration: InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                // Fix #5: won't crash even if this option's saved category
+                // (e.g. "Technology") no longer exists in the canonical list.
+                items: _safeDropdownItems(
+                    AppConstants.trainingCategories, _category),
                 onChanged: (v) => setState(() => _category = v!),
               ),
-
-              DropdownButtonFormField<String>(
-                value: _mode,
-                decoration: const InputDecoration(labelText: "Mode"),
-                items: const ['Online', 'Physical', 'Hybrid']
-                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                    .toList(),
-                onChanged: (v) => setState(() => _mode = v!),
-              ),
-
-              TextFormField(
-                controller: _venueCtrl,
-                decoration: const InputDecoration(labelText: "Venue"),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-              TextButton.icon(
-                icon: const Icon(Icons.calendar_today),
-                label: Text(_dateCtrl.text),
-                onPressed: () async {
-                  final picked = await showDatePicker(
+              const SizedBox(height: 12),
+              CustomTextField(
+                  label: 'Organizer',
+                  controller: _organizerCtrl,
+                  validator: (v) => v!.isEmpty ? 'Required' : null),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final d = await showDatePicker(
                     context: context,
                     initialDate: _date ?? DateTime.now(),
                     firstDate: DateTime(2020),
                     lastDate: DateTime(2030),
                   );
-
-                  if (picked != null) {
+                  if (d != null) {
                     setState(() {
-                      _date = picked;
-                      _dateCtrl.text = DateFormat('d MMM yyyy').format(picked);
+                      _date = d;
+                      _dateDisplayCtrl.text = DateFormat('d MMM yyyy').format(d);
                     });
                   }
                 },
+                child: IgnorePointer(
+                  child: TextFormField(
+                    controller: _dateDisplayCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Training Date',
+                      hintText: 'Select date',
+                      prefixIcon:
+                          const Icon(Icons.calendar_today, size: 20),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    validator: (_) => _date == null ? 'Required' : null,
+                  ),
+                ),
               ),
-              TextFormField(
-                controller: _durationCtrl,
-                decoration: const InputDecoration(labelText: "Duration"),
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  if (double.tryParse(v) == null) return 'Must be a number';
-                  return null;
-                },
+              const SizedBox(height: 12),
+              CustomTextField(
+                  label: 'Duration (hours)',
+                  controller: _durationCtrl,
+                  keyboardType: TextInputType.number,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (double.tryParse(v) == null) return 'Must be a number';
+                    return null;
+                  }),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _mode,
+                decoration: InputDecoration(
+                    labelText: 'Mode',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                items: _safeDropdownItems(_trainingModes, _mode),
+                onChanged: (v) => setState(() => _mode = v!),
               ),
-              TextFormField(controller: _linkCtrl, decoration: const InputDecoration(labelText: "Meeting Link")),
+              const SizedBox(height: 12),
+              CustomTextField(
+                label: 'Venue / Platform',
+                controller: _venueCtrl,
+                validator: (v) => v!.isEmpty ? 'Required' : null,
+              ),
 
-              const SizedBox(height: 20),
+              if (_mode != 'Physical') ...[
+                const SizedBox(height: 12),
+                CustomTextField(
+                  label: 'Meeting Link',
+                  controller: _meetingLinkCtrl,
+                  validator: (v) {
+                    if (_mode != 'Physical' &&
+                        (v == null || v.trim().isEmpty)) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                ),
+              ],
 
-              ElevatedButton(
+              const SizedBox(height: 24),
+              CustomButton(
+                label: 'Save Changes',
                 onPressed: _save,
-                child: const Text("Save Changes"),
-              )
+                isLoading: _saving,
+              ),
             ],
           ),
         ),

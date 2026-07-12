@@ -20,6 +20,11 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
     with SingleTickerProviderStateMixin {
   final _svc = TrainingService();
   final _docStorageSvc = StorageService();
+  final _searchController = TextEditingController();
+
+  String _search = '';
+  String? _filterStatus;
+
   List<Map<String, dynamic>> _options = [];
   List<Map<String, dynamic>> _teacherProgress = [];
   bool _loading = true;
@@ -30,6 +35,43 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _load();
+  }
+
+  List<Map<String,dynamic>> get filteredOptions {
+    return _options.where((o){
+      final title = (o['title'] ?? '').toLowerCase();
+      final matchesSearch =
+          title.contains(_search.toLowerCase());
+      final isCancelled = o['is_cancelled'] == true;
+      final date = DateTime.tryParse(
+            o['training_date'] as String? ?? '',
+          ) ??
+          DateTime.now();
+      final today = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+      );
+      final trainingDay = DateTime(
+        date.year,
+        date.month,
+        date.day,
+      );
+      final isClosed = !isCancelled && !trainingDay.isAfter(today);
+
+      bool matchesFilter = true;
+
+      if (_filterStatus == "Upcoming") {
+        matchesFilter = !isCancelled && !isClosed;
+      }
+      if (_filterStatus == "Closed") {
+        matchesFilter = isClosed;
+      }
+      if (_filterStatus == "Cancelled") {
+        matchesFilter = isCancelled;
+      }
+      return matchesSearch && matchesFilter;
+    }).toList();
   }
 
   @override
@@ -114,6 +156,34 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
     );
   }
 
+  // ── Fix #6: confirmation dialog before cancelling a training option ──
+  Future<bool> _confirmCancel(String title) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Cancel Training Option'),
+        content: Text(
+          'Are you sure you want to cancel "$title"? '
+          'It will be hidden from teachers and no longer accept new applications. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No, keep it'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Yes, cancel'),
+          ),
+        ],
+      ),
+    );
+    return confirm ?? false;
+  }
+
   Widget _buildCourseList() {
     if (_options.isEmpty) {
       return Center(
@@ -146,96 +216,207 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
 
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _options.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (_, i) {
-          final opt = _options[i];
-          final count = opt['application_count'] as int? ?? 0;
-          final pending = opt['pending_count'] as int? ?? 0;
-          final date = DateTime.tryParse(opt['training_date'] as String? ?? '') ??
-              DateTime.now();
-
-          return Card(
-            elevation: 3,
-            shadowColor: navy.withOpacity(0.15),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
+      child: Column(
+        children: [
+          // Search
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: 'Search training...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() => _search = value);
+              },
             ),
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              title: Text(opt['title'] as String? ?? 'Untitled',
-                  style: const TextStyle( fontWeight: FontWeight.w800, color: navyDark,)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text(
-                      '${opt['category'] ?? "General"} · ${opt['mode'] ?? "Online"} · ${DateFormat('d MMM yyyy').format(date)}'),
-                  Text('${opt['organizer'] ?? "N/A"} @ ${opt['venue'] ?? "N/A"}',
-                      style: const TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 6),
-                  Row(
+          ),
+
+          // Filter
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: DropdownButtonFormField<String>(
+              value: _filterStatus,
+              decoration: const InputDecoration(
+                labelText: 'Filter',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: null, child: Text('All')),
+                DropdownMenuItem(value: 'Upcoming', child: Text('Upcoming')),
+                DropdownMenuItem(value: 'Closed', child: Text('Closed')),
+                DropdownMenuItem(value: 'Cancelled', child: Text('Cancelled')),
+              ],
+              onChanged: (value) {
+                setState(() => _filterStatus = value);
+              },
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          Expanded(
+            child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: filteredOptions.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (_, i) {
+              final opt = filteredOptions[i];
+              final count = opt['application_count'] as int? ?? 0;
+              final pending = opt['pending_count'] as int? ?? 0;
+              final date = DateTime.tryParse(opt['training_date'] as String? ?? '') ??
+                  DateTime.now();
+              final isCancelled = opt['is_cancelled'] == true;
+              final isClosed = !isCancelled && date.isBefore(DateTime.now());
+
+              return Card(
+                elevation: 3,
+                shadowColor: navy.withOpacity(0.15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  title: Row(
                     children: [
-                      _countBadge('$count applied', Colors.blueGrey),
-                      const SizedBox(width: 6),
-                      if (pending > 0)
-                        _countBadge('$pending pending', Colors.orange),
+                      Expanded(
+                        child: Text(
+                          opt['title'] as String? ?? 'Untitled',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: (isCancelled || isClosed)
+                                ? Colors.grey
+                                : navyDark,
+
+                            decoration: isCancelled
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                      ),
+
+                      if (isCancelled)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            "CANCELLED",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      if (isClosed)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            "CLOSED",
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                ],
-              ),
-              trailing: PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: navy),
-                onSelected: (value) async {
-                  if (value == 'edit') {
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(
+                          '${opt['category'] ?? "General"} · ${opt['mode'] ?? "Online"} · ${DateFormat('d MMM yyyy').format(date)}'),
+                      Text('${opt['organizer'] ?? "N/A"} @ ${opt['venue'] ?? "N/A"}',
+                          style: const TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          _countBadge('$count applied', Colors.blueGrey),
+                          const SizedBox(width: 6),
+                          if (pending > 0)
+                            _countBadge('$pending pending', Colors.orange),
+                        ],
+                      ),
+                    ],
+                  ),
+                  trailing: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: navy),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditTrainingOptionScreen(
+                              option: TrainingOption.fromMap(Map<String, dynamic>.from(opt)),
+                            ),
+                          ),
+                        );
+                        _load();
+                      }
+
+                      if (value == 'cancel') {
+                        final title = opt['title'] as String? ?? 'this training';
+                        final confirmed = await _confirmCancel(title);
+                        if (!confirmed) return;
+                        // TODO(notifications): notify all applicants that this
+                        // training option was cancelled by the principal.
+                        await _svc.cancelTrainingOption(opt['id'].toString());
+                        _load();
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (!isCancelled && !isClosed)
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Text('Edit'),
+                        ),
+
+                      if (!isCancelled && !isClosed)
+                        const PopupMenuItem(
+                          value: 'cancel',
+                          child: Text('Cancel'),
+                        ),
+                    ],
+                  ),
+                  onTap: () async {
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => EditTrainingOptionScreen(
-                          option: TrainingOption.fromMap(Map<String, dynamic>.from(opt)),
+                        builder: (_) => TrainingApplicantsScreen(
+                          option: opt,
+                          applicants: List<Map<String, dynamic>>.from(
+                            opt['applicants'] as List? ?? [],
+                          ),
                         ),
                       ),
                     );
                     _load();
-                  }
-
-                  if (value == 'cancel') {
-                    await _svc.cancelTrainingOption(opt['id'].toString());
-                    _load();
-                  }
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Text('Edit'),
-                  ),
-                  PopupMenuItem(
-                    value: 'cancel',
-                    child: Text('Cancel'),
-                  ),
-                ],
-              ),
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TrainingApplicantsScreen(
-                      option: opt,
-                      applicants: List<Map<String, dynamic>>.from(
-                        opt['applicants'] as List? ?? [],
-                      ),
-                    ),
-                  ),
-                );
-                _load();
-              },
-            ),
-          );
-        },
-      ),
+                  },
+                ),
+              );
+            },
+          ),
+          ),
+        ],
+      )
     );
   }
 
@@ -276,11 +457,19 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
           const SizedBox(height: 4),
           Text('Minimum required: 3 approved trainings per teacher',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          const SizedBox(height: 4),
+          Text('Tap a teacher to see their full training history.',
+              style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic)),
           const SizedBox(height: 16),
           ..._teacherProgress.map((t) {
             final count = t['approved_count'] as int? ?? 0;
             final met = count >= 3;
             final progress = (count / 3).clamp(0.0, 1.0);
+            final userId = t['user_id'] as String? ?? '';
+            final fullName = t['full_name'] as String? ?? 'Unknown';
 
             return Card(
               elevation: 3,
@@ -289,66 +478,250 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
                 borderRadius: BorderRadius.circular(18),
               ),
               margin: const EdgeInsets.only(bottom: 10),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(t['full_name'] as String? ?? 'Unknown',
-                              style: const TextStyle(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                // ── Fix principal-side #1: drill into a teacher's full training list ──
+                onTap: userId.isEmpty
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TeacherTrainingHistoryScreen(
+                              teacherUuid: userId,
+                              teacherName: fullName,
+                            ),
+                          ),
+                        );
+                      },
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(fullName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15)),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: met
+                                  ? Colors.green.withOpacity(0.12)
+                                  : Colors.orange.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: met
+                                      ? Colors.green.withOpacity(0.5)
+                                      : Colors.orange.withOpacity(0.5)),
+                            ),
+                            child: Text(
+                              met ? 'Quota Met ✓' : '$count / 3',
+                              style: TextStyle(
+                                  color: met ? Colors.green : Colors.orange,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 15)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: met
-                                ? Colors.green.withOpacity(0.12)
-                                : Colors.orange.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: met
-                                    ? Colors.green.withOpacity(0.5)
-                                    : Colors.orange.withOpacity(0.5)),
+                                  fontSize: 12),
+                            ),
                           ),
-                          child: Text(
-                            met ? 'Quota Met ✓' : '$count / 3',
-                            style: TextStyle(
-                                color: met ? Colors.green : Colors.orange,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 8,
-                        backgroundColor: Colors.grey.shade200,
-                        color: met ? Colors.green : Colors.orange,
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '$count approved training${count == 1 ? '' : 's'} this year',
-                      style: TextStyle(
-                          color: Colors.grey.shade600, fontSize: 12),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 8,
+                          backgroundColor: Colors.grey.shade200,
+                          color: met ? Colors.green : Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '$count approved training${count == 1 ? '' : 's'} this year',
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
           }),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// NEW: Full training history for a single teacher (principal view)
+// ─────────────────────────────────────────────────────────────────
+class TeacherTrainingHistoryScreen extends StatefulWidget {
+  final String teacherUuid;
+  final String teacherName;
+
+  const TeacherTrainingHistoryScreen({
+    super.key,
+    required this.teacherUuid,
+    required this.teacherName,
+  });
+
+  @override
+  State<TeacherTrainingHistoryScreen> createState() =>
+      _TeacherTrainingHistoryScreenState();
+}
+
+class _TeacherTrainingHistoryScreenState
+    extends State<TeacherTrainingHistoryScreen> {
+  final _svc = TrainingService();
+  List<TrainingRecord> _records = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final data = await _svc.getMyTrainings(widget.teacherUuid);
+      if (!mounted) return;
+      setState(() {
+        _records = data;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load training history: $e')),
+      );
+    }
+  }
+
+  Color _statusColor(String status) => switch (status) {
+        'approved' => Colors.blue,
+        'rejected' => Colors.red,
+        'completed' => Colors.green,
+        _ => Colors.orange,
+      };
+
+  IconData _statusIcon(String status) => switch (status) {
+        'approved' => Icons.check_circle_outline,
+        'rejected' => Icons.cancel,
+        'completed' => Icons.verified,
+        _ => Icons.pending_actions,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final approvedOrCompleted =
+        _records.where((r) => r.isApproved || r.isCompleted).length;
+
+    return Scaffold(
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        backgroundColor: navy,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text("${widget.teacherName}'s Trainings",
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+      ),
+      body: _loading
+          ? const LoadingWidget()
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: _records.isEmpty
+                  ? ListView(
+                      children: const [
+                        SizedBox(height: 120),
+                        Center(child: Text('No training records found.')),
+                      ],
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: navy.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: navy.withOpacity(0.15)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.school_rounded, color: navy),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  '$approvedOrCompleted approved/completed out of ${_records.length} total applications',
+                                  style: const TextStyle(
+                                      color: navyDark,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ..._records.map((r) => Card(
+                              elevation: 3,
+                              shadowColor: navy.withOpacity(0.15),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 6),
+                                title: Text(r.title,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: navyDark)),
+                                subtitle: Text(
+                                  '${r.category} · ${DateFormat('d MMM yyyy').format(r.trainingDate)}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(_statusIcon(r.status),
+                                        color: _statusColor(r.status),
+                                        size: 18),
+                                    const SizedBox(width: 4),
+                                    Text(r.status.toUpperCase(),
+                                        style: TextStyle(
+                                            color: _statusColor(r.status),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11)),
+                                  ],
+                                ),
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => PrincipalTrainingReportScreen(
+                                        training: r,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            )),
+                      ],
+                    ),
+            ),
     );
   }
 }
@@ -390,20 +763,103 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
     }
   }
 
-  Future<void> _updateStatus(String trainingId, String status) async {
+  Future<void> _updateStatus(
+    String trainingId,
+    String status, [
+    String? rejectionReason,
+  ]) async {
     try {
-      await _svc.updateTrainingStatus(trainingId.toString(), status);
+      await _svc.updateTrainingStatus(
+        trainingId,
+        status,
+        rejectionReason,
+      );
+
       setState(() {
-        final idx = _applicants.indexWhere((a) => a['id'] == trainingId);
+        final idx = _applicants.indexWhere(
+          (a) => a['id'].toString() == trainingId,
+        );
+
         if (idx != -1) {
-          _applicants[idx] = {..._applicants[idx], 'status': status};
+          _applicants[idx] = {
+            ..._applicants[idx],
+            'status': status,
+            'rejection_reason': status == 'rejected'
+                ? rejectionReason
+                : null,
+          };
         }
       });
+      // TODO(notifications): notify the teacher that their training
+      // application status changed to `status`.
     } catch (e) {
+      // NOTE: if this keeps failing specifically for "reset to pending",
+      // it is very likely a Supabase RLS policy on `trainings` that only
+      // allows the owning teacher (teacher_uuid = auth.uid()) to UPDATE
+      // status, blocking the principal's own account. Add/adjust an
+      // UPDATE policy on `trainings` that also allows principal accounts.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to update status: $e')),
       );
     }
+  }
+
+  Future<bool?> _showApproveDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Approve Application"),
+        content: const Text(
+          "Are you sure you want to approve this training application?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Approve"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showRejectDialog() async {
+    final controller = TextEditingController();
+
+    return showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Reject Application"),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: "Reason for rejection",
+            hintText: "Enter rejection reason...",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.trim().isEmpty) return;
+              Navigator.pop(context, controller.text.trim());
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text("Reject"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showPhotoDialog(String url) {
@@ -454,26 +910,29 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
         DateTime.now();
 
     return Scaffold(
+      backgroundColor: lightBg,
       appBar: AppBar(
         backgroundColor: navy,
         foregroundColor: Colors.white,
         elevation: 0,
         title: Text(opt['title'] as String? ?? 'Details',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       body: Column(
         children: [
+          // ── Fix principal-side #2: explicit light background + explicit
+          // text colors so this card is legible regardless of the app's
+          // ambient/dark theme (previously relied on theme colorScheme,
+          // which could render dark-on-dark). ──
           Container(
             width: double.infinity,
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .primaryContainer
-                  .withOpacity(0.4),
+              color: navy.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: navy.withOpacity(0.15)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,7 +951,7 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
               children: [
                 Text('Applicants (${_applicants.length})',
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
+                        fontWeight: FontWeight.bold, fontSize: 16, color: navyDark)),
                 const Spacer(),
                 _miniCount(
                     _applicants.where((a) => a['status'] == 'pending').length,
@@ -551,7 +1010,8 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                                     child: Text(name,
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 15)),
+                                            fontSize: 15,
+                                            color: navyDark)),
                                   ),
                                   Icon(_statusIcon(status),
                                       color: _statusColor(status)),
@@ -568,7 +1028,8 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                                 const Text('Reflection',
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 13)),
+                                        fontSize: 13,
+                                        color: navyDark)),
                                 const SizedBox(height: 4),
                                 Container(
                                   width: double.infinity,
@@ -580,7 +1041,8 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                                   child: Text('"$reflection"',
                                       style: const TextStyle(
                                           fontStyle: FontStyle.italic,
-                                          fontSize: 13)),
+                                          fontSize: 13,
+                                          color: Colors.black87)),
                                 ),
                               ],
                               if (certUrl != null && certUrl.isNotEmpty) ...[
@@ -588,7 +1050,8 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                                 const Text('Certificate',
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 13)),
+                                        fontSize: 13,
+                                        color: navyDark)),
                                 const SizedBox(height: 4),
                                 InkWell(
                                   onTap: () async {
@@ -625,7 +1088,8 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                                 const Text('Training Photos',
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 13)),
+                                        fontSize: 13,
+                                        color: navyDark)),
                                 const SizedBox(height: 6),
                                 GridView.builder(
                                   shrinkWrap: true,
@@ -676,36 +1140,62 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                                   children: [
                                     Expanded(
                                       child: OutlinedButton(
-                                        onPressed: () => _updateStatus(
-                                            (a['id'] ?? '').toString(), 'rejected'),
+                                        onPressed: () async {
+                                          final reason = await _showRejectDialog();
+
+                                          if (reason != null) {
+                                            await _updateStatus(
+                                              (a['id'] ?? '').toString(),
+                                              'rejected',
+                                              reason,
+                                            );
+                                          }
+                                        },
                                         style: OutlinedButton.styleFrom(
-                                            foregroundColor: Colors.red,
-                                            side: const BorderSide(
-                                                color: Colors.red)),
+                                          foregroundColor: Colors.red,
+                                          side: const BorderSide(color: Colors.red),
+                                        ),
                                         child: const Text('Reject'),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: ElevatedButton(
-                                        onPressed: () => _updateStatus(
-                                            (a['id'] ?? '').toString(), 'approved'),
+                                        onPressed: () async {
+                                          final confirm = await _showApproveDialog();
+
+                                          if (confirm == true) {
+                                            await _updateStatus(
+                                              (a['id'] ?? '').toString(),
+                                              'approved',
+                                            );
+                                          }
+                                        },
                                         style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.green,
-                                            foregroundColor: Colors.white),
+                                          backgroundColor: Colors.green,
+                                          foregroundColor: Colors.white,
+                                        ),
                                         child: const Text('Approve'),
                                       ),
                                     ),
                                   ],
                                 ),
                               ],
-                              if (status == 'approved') ...[
+                              if (status == 'approved' || status == 'rejected') ...[
                                 const SizedBox(height: 8),
                                 TextButton(
-                                  onPressed: () => _updateStatus(
-                                      (a['id'] ?? '').toString(), 'pending'),
-                                  child: const Text('Reset to Pending',
-                                      style: TextStyle(color: Colors.blueGrey)),
+                                  onPressed: () async {
+                                    await _updateStatus(
+                                      (a['id'] ?? '').toString(),
+                                      'pending',
+                                    );
+                                  },
+                                  child: Text(
+                                    status == 'rejected'
+                                        ? 'Revert Rejection'
+                                        : 'Reset to Pending',
+                                    style: const TextStyle(color: Colors.blueGrey),
+                                  ),
                                 ),
                               ],
                               if (status == 'completed') ...[
@@ -748,7 +1238,9 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
                         color: Colors.grey,
                         fontSize: 12,
                         fontWeight: FontWeight.w600))),
-            Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
+            Expanded(
+                child: Text(value,
+                    style: const TextStyle(fontSize: 13, color: navyDark))),
           ],
         ),
       );
@@ -763,4 +1255,302 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
             style: TextStyle(
                 color: color, fontSize: 11, fontWeight: FontWeight.w600)),
       );
+}
+
+class PrincipalTrainingReportScreen extends StatefulWidget {
+  final TrainingRecord training;
+
+  const PrincipalTrainingReportScreen({
+    super.key,
+    required this.training,
+  });
+
+  @override
+  State<PrincipalTrainingReportScreen> createState() =>
+      _PrincipalTrainingReportScreenState();
+}
+
+class _PrincipalTrainingReportScreenState
+    extends State<PrincipalTrainingReportScreen> {
+
+  final _storage = StorageService();
+
+  @override
+  Widget build(BuildContext context) {
+
+    final t = widget.training;
+
+    return Scaffold(
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        backgroundColor: navy,
+        foregroundColor: Colors.white,
+        title: const Text("Training Report"),
+      ),
+
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+
+          children: [
+
+            _sectionCard(
+
+              child: Column(
+
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+
+                children: [
+
+                  _info("Training", t.title),
+
+                  _info("Status",
+                      t.status.toUpperCase()),
+
+                  _info("Category", t.category),
+
+                  _info("Organizer",
+                      t.organizer),
+
+                  _info(
+                    "Date",
+                    DateFormat("d MMM yyyy")
+                        .format(t.trainingDate),
+                  ),
+
+                  _info(
+                    "Duration",
+                    "${t.durationHours} hours",
+                  ),
+
+                  _info("Mode", t.mode),
+
+                  _info("Venue", t.venue),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              "Reflection",
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Container(
+              width: double.infinity,
+              padding:
+                  const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: navy.withOpacity(.05),
+                borderRadius:
+                    BorderRadius.circular(12),
+              ),
+
+              child: Text(
+                t.reflection?.isNotEmpty == true
+                    ? t.reflection!
+                    : t.isRejected
+                        ? "This training application was rejected by the principal. No training report was submitted."
+                        : t.isPending
+                            ? "This training has not been approved yet. A reflection can only be submitted after approval."
+                            : "No reflection submitted.",
+                style: TextStyle(
+                  color: t.isRejected
+                      ? Colors.red
+                      : Colors.grey.shade700,
+                  fontStyle: FontStyle.normal
+                ),
+              ),
+            ),
+
+                        if (t.certificateUrl != null) ...[
+
+              const SizedBox(height: 24),
+
+              const Text(
+                "Certificate",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
+              ),
+
+              ListTile(
+
+                leading: const Icon(
+                  Icons.picture_as_pdf,
+                  color: Colors.red,
+                ),
+
+                title:
+                    const Text("View Certificate"),
+
+                trailing:
+                    const Icon(Icons.open_in_new),
+
+                onTap: () async {
+
+                  final url =
+                      await _storage.getDownloadUrl(
+                    t.certificateUrl!,
+                  );
+
+                  launchUrl(
+                    Uri.parse(url),
+                    mode:
+                        LaunchMode.inAppBrowserView,
+                  );
+                },
+              ),
+            ],
+
+                        if (t.photoUrls.isNotEmpty) ...[
+
+              const SizedBox(height: 24),
+
+              const Text(
+                "Training Photos",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              GridView.builder(
+
+                shrinkWrap: true,
+
+                physics:
+                    const NeverScrollableScrollPhysics(),
+
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+
+                  crossAxisCount: 3,
+
+                  crossAxisSpacing: 8,
+
+                  mainAxisSpacing: 8,
+                ),
+
+                itemCount: t.photoUrls.length,
+
+                itemBuilder: (_, index) {
+
+                  return FutureBuilder<String>(
+
+                    future: _storage.getDownloadUrl(
+                        t.photoUrls[index]),
+
+                    builder: (_, snapshot) {
+
+                      if (!snapshot.hasData) {
+
+                        return const Center(
+                          child:
+                              CircularProgressIndicator(),
+                        );
+                      }
+
+                      return GestureDetector(
+
+                        onTap: () {
+
+                          showDialog(
+
+                            context: context,
+
+                            builder: (_) => Dialog(
+
+                              child: Image.network(
+                                  snapshot.data!),
+                            ),
+                          );
+                        },
+
+                        child: ClipRRect(
+
+                          borderRadius:
+                              BorderRadius.circular(10),
+
+                          child: Image.network(
+
+                            snapshot.data!,
+
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+                      ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionCard({
+    required Widget child,
+  }) {
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: navy.withOpacity(.05),
+        borderRadius:
+            BorderRadius.circular(14),
+        border: Border.all(
+          color: navy.withOpacity(.15),
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _info(
+      String label,
+      String value,
+      ) {
+
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(vertical: 3),
+
+      child: Row(
+        children: [
+
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
 }

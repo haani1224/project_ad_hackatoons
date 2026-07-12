@@ -67,6 +67,7 @@ class TrainingRecord {
   // Teacher's own submission fields
   final String? reflection;
   final String status;
+  final String? rejectionReason;
   final String? certificateUrl;
   final List<String> photoUrls;
   // Joined from teacher_records — read only
@@ -88,6 +89,7 @@ class TrainingRecord {
     this.meetingLink,
     this.reflection,
     required this.status,
+    this.rejectionReason,
     this.certificateUrl,
     this.photoUrls = const [],
     this.teacherName,
@@ -129,6 +131,7 @@ class TrainingRecord {
       meetingLink: opt?['meeting_link'] as String? ?? map['meeting_link'] as String?,
       reflection: map['reflection'] as String?,
       status: map['status'] as String? ?? 'pending',
+      rejectionReason: map['rejection_reason'] as String?,
       certificateUrl: map['certificate_url'] as String?,
       photoUrls: List<String>.from(map['photo_urls'] ?? []),
       teacherName: teacherName,
@@ -145,6 +148,7 @@ class TrainingRecord {
     'training_option_id': trainingOptionId,
     'reflection': reflection,
     'status': status,
+    'rejection_reason': rejectionReason,
     'certificate_url': certificateUrl,
     'photo_urls': photoUrls,
   };

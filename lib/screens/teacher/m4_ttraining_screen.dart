@@ -240,6 +240,8 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
         teacherUuid: widget.teacherId,      // ✅ matches new service param
         trainingOptionId: option.id.toString(),
       );
+      // TODO(notifications): notify the principal that a new application
+      // was submitted for `option.title`.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content:
@@ -387,6 +389,8 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
       certificateUrl: _certPath, // null is fine
       photoUrls: _photoPaths,
     );
+    // TODO(notifications): notify the principal that a training report
+    // was submitted and is ready for review.
     setState(() => _saving = false);
     if (mounted) {
       ScaffoldMessenger.of(context)
@@ -395,6 +399,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
     }
   }
 
+  // ── Fix teacher-side #2: nicer status banners + a small icon accent ──
   Widget _completedView(TrainingRecord t) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -409,7 +414,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
             style: Theme.of(context)
                 .textTheme
                 .titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold)),
+                ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
@@ -428,7 +433,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+                  ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -449,7 +454,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+                  ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
           const SizedBox(height: 8),
           GridView.builder(
             shrinkWrap: true,
@@ -491,48 +496,105 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final t = widget.training;
+    final canJoinMeeting = t.isApproved || t.isCompleted;
+
     return Scaffold(
       backgroundColor: lightBg,
       appBar: AppBar(
         backgroundColor: navyDark,
         foregroundColor: Colors.white,
         elevation: 0,
+        // Fix teacher-side #2: previously had no title at all.
+        title: Text(t.title,
+            style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Training info
-            _infoRow('Status', t.status.toUpperCase()),
-            _infoRow('Category', t.category),
-            _infoRow('Organizer', t.organizer),
-            _infoRow('Date', DateFormat('d MMM yyyy').format(t.trainingDate)),
-            _infoRow('Duration', '${t.durationHours} hours'),
-            _infoRow('Mode', t.mode),
-            _infoRow('Venue', t.venue),
-            if (t.mode != 'Physical' &&
-              t.meetingLink != null &&
-              t.meetingLink!.isNotEmpty)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.video_call),
-              title: const Text('Join Online Session'),
-              trailing: const Icon(Icons.open_in_new),
-              onTap: () async {
-                await launchUrl(
-                  Uri.parse(t.meetingLink!),
-                  mode: LaunchMode.externalApplication,
-                );
-              },
+            // Fix teacher-side #2: training info wrapped in a styled card
+            // instead of bare rows, matching the rest of the app's look.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: navy.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: navy.withOpacity(0.15)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _infoRow('Status', t.status.toUpperCase()),
+                  _infoRow('Category', t.category),
+                  _infoRow('Organizer', t.organizer),
+                  _infoRow('Date', DateFormat('d MMM yyyy').format(t.trainingDate)),
+                  _infoRow('Duration', '${t.durationHours} hours'),
+                  _infoRow('Mode', t.mode),
+                  _infoRow('Venue', t.venue),
+                ],
+              ),
             ),
+
+            // ── Fix teacher-side #1: meeting link is now disabled
+            // (greyed out, no tap action) until the application is
+            // approved or completed, instead of always being clickable. ──
+            if (t.mode != 'Physical' &&
+                t.meetingLink != null &&
+                t.meetingLink!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Opacity(
+                opacity: canJoinMeeting ? 1.0 : 0.5,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: canJoinMeeting
+                        ? Colors.blue.withOpacity(0.06)
+                        : Colors.grey.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: canJoinMeeting
+                            ? Colors.blue.withOpacity(0.25)
+                            : Colors.grey.withOpacity(0.3)),
+                  ),
+                  child: ListTile(
+                    enabled: canJoinMeeting,
+                    leading: Icon(Icons.video_call,
+                        color: canJoinMeeting ? Colors.blue : Colors.grey),
+                    title: Text('Join Online Session',
+                        style: TextStyle(
+                            color: canJoinMeeting ? navyDark : Colors.grey,
+                            fontWeight: FontWeight.w600)),
+                    subtitle: Text(
+                      canJoinMeeting
+                          ? 'Tap to open the meeting link'
+                          : 'Available once your application is approved',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    trailing: Icon(Icons.open_in_new,
+                        color: canJoinMeeting ? Colors.blue : Colors.grey),
+                    onTap: canJoinMeeting
+                        ? () async {
+                            await launchUrl(
+                              Uri.parse(t.meetingLink!),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        : null,
+                  ),
+                ),
+              ),
+            ],
+
             const Divider(height: 32),
 
             // State-based content
             if (t.isRejected)
               _statusBanner(
                 'Application Not Approved',
-                'Please contact the principal for more information.',
+                t.rejectionReason?.isNotEmpty == true
+                    ? t.rejectionReason!
+                    : 'Your application was rejected. Please contact the principal for more information.',
                 Colors.red,
                 Icons.cancel_outlined,
               )
@@ -551,7 +613,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                      ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
               const SizedBox(height: 4),
               Text('What did you learn from this training?',
                   style: TextStyle(color: Colors.grey.shade600)),
@@ -567,7 +629,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                      ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
               const SizedBox(height: 4),
               Text('Upload your completion certificate if available.',
                   style: TextStyle(color: Colors.grey.shade600)),
@@ -614,7 +676,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                      ?.copyWith(fontWeight: FontWeight.bold, color: navyDark)),
               const SizedBox(height: 4),
               Text('At least one photo required as proof of attendance.',
                   style: TextStyle(color: Colors.grey.shade600)),
@@ -719,7 +781,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                         fontWeight: FontWeight.w600,
                         color: Colors.grey,
                         fontSize: 13))),
-            Expanded(child: Text(value)),
+            Expanded(child: Text(value, style: const TextStyle(color: navyDark))),
           ],
         ),
       );
