@@ -9,9 +9,12 @@ import 'm1_trecord_screen.dart';
 import 'm4_ttraining_screen.dart';
 import 'teacher_home.dart';
 import 'teacher_leave_module.dart';
+import 'teacher_notification_screen.dart';
+import '../../widgets/notification_button.dart';
+import '../../services/app_notification_service.dart';
 
-class TeacherMainPage extends StatelessWidget {
-  final TeacherModel teacher;// 1. Add this variable
+class TeacherMainPage extends StatefulWidget {
+  final TeacherModel teacher;
   final TeacherRecord? record;
 
   const TeacherMainPage({
@@ -20,11 +23,36 @@ class TeacherMainPage extends StatelessWidget {
     this.record,
   });
 
+  @override
+  State<TeacherMainPage> createState() => _TeacherMainPageState();
+}
+
+class _TeacherMainPageState extends State<TeacherMainPage> {
 
   static const Color navy = Color(0xFF1B2E4B);
   static const Color navyLight = Color(0xFF2E4365);
   static const Color gold = Color(0xFFE59D2C);
   static const Color bgColor = Color(0xFFF0F2F7);
+
+  Widget _divider() {
+    return Container(
+      width: 1,
+      height: 28,
+      color: Colors.white.withOpacity(0.2),
+    );
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+
+    if (hour < 12) {
+      return "Good Morning,";
+    } else if (hour < 17) {
+      return "Good Afternoon,";
+    } else {
+      return "Good Evening,";
+    }
+  }
 
   void _showMenu(BuildContext context) {
     showGeneralDialog(
@@ -67,7 +95,7 @@ class TeacherMainPage extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (_) => TeacherProfileScreen(
-                              userId: teacher.authId,
+                              userId: widget.teacher.authId,
                             ),
                           ),
                         );
@@ -143,7 +171,7 @@ class TeacherMainPage extends StatelessWidget {
             child: _buildHeader(context),
           ),
           
-          if (_hasMissingDocs(record)) // or however you access record
+          if (_hasMissingDocs(widget.record)) // or however you access record
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -205,7 +233,7 @@ class TeacherMainPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => TeacherHome(userId: teacher.id),
+                        builder: (_) => TeacherHome(userId: widget.teacher.id),
                       ),
                     );
                   },
@@ -234,7 +262,7 @@ class TeacherMainPage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => TeacherLeaveModule(
-                          teacherId: teacher.id,
+                          teacherId: widget.teacher.id,
                         ),
                       ),
                     );
@@ -252,7 +280,7 @@ class TeacherMainPage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => TeacherDutyPage(
-                          teacher: teacher,
+                          teacher: widget.teacher,
                         ),
                       ),
                     );
@@ -272,7 +300,7 @@ class TeacherMainPage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => TeacherTrainingScreen(
-                          teacherId: teacher.authId, // UUID
+                          teacherId: widget.teacher.authId, // UUID
                         )
                       ),
                     );
@@ -351,17 +379,20 @@ class TeacherMainPage extends StatelessWidget {
                     ),
                   ),
 
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.all(8),
-                    child: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
+                  NotificationButton(
+                    getCount: () => 
+                        AppNotificationService().getUnreadCount(),
+
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => TeacherNotificationScreen(
+                            teacher: widget.teacher,
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(width: 10),
@@ -398,7 +429,7 @@ class TeacherMainPage extends StatelessWidget {
               const SizedBox(height: 4),
 
              Text(
-                "Teacher ${teacher.name.split(' ').first}",
+                "Teacher ${widget.teacher.name.split(' ').first}",
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -481,26 +512,6 @@ class TeacherMainPage extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  Widget _divider() {
-    return Container(
-      width: 1,
-      height: 28,
-      color: Colors.white.withOpacity(0.2),
-    );
-  }
-
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-
-    if (hour < 12) {
-      return "Good Morning,";
-    } else if (hour < 17) {
-      return "Good Afternoon,";
-    } else {
-      return "Good Evening,";
-    }
   }
 
   Widget _moduleCard(

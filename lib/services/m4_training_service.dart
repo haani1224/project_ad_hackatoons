@@ -20,15 +20,29 @@ class TrainingService {
     return res['user_id'] as String;
   }
 
+  Future<List<Map<String, dynamic>>> getAllTeachers() async {
+    final data = await _client
+        .from('teacher_records')
+        .select('user_id');
+
+    return List<Map<String, dynamic>>.from(data);
+  }
+
   // ─────────────────────────────────────────────
   // TRAINING OPTIONS
   // ─────────────────────────────────────────────
 
-  Future<void> createTrainingOption(TrainingOption option) async {
-    await _client.from('training_options').insert({
-      ...option.toMap(),
-      'created_by': _client.auth.currentUser!.id,
-    });
+  Future<String> createTrainingOption(TrainingOption option) async {
+    final data = await _client
+        .from('training_options')
+        .insert({
+          ...option.toMap(),
+          'created_by': _client.auth.currentUser!.id,
+        })
+        .select()
+        .single();
+
+    return data['id'].toString();
   }
 
   Future<void> updateTrainingOption(TrainingOption option) async {

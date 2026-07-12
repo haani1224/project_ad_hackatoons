@@ -10,6 +10,7 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../widgets/loading_widget.dart';
 import '../../utils/theme_constants.dart';
+import '../../services/app_notification_service.dart';
 
 // ── 1. Main list screen ───────────────────────────────────────────────────────
 
@@ -38,6 +39,26 @@ class _TeacherTrainingScreenState extends State<TeacherTrainingScreen> {
   void initState() {
     super.initState();
     _load();
+    _checkTrainingReminder();
+  }
+
+  Future<void> _checkTrainingReminder() async {
+    final today = DateTime.now();
+    for (final t in _trainings) {
+      if (t.trainingDate.year == today.year &&
+          t.trainingDate.month == today.month &&
+          t.trainingDate.day == today.day &&
+          t.isApproved) {
+
+        await AppNotificationService().createNotification(
+          userId: widget.teacherId,
+          message:
+              "Reminder: Your training '${t.title}' is scheduled today.",
+          type: "training",
+          referenceId: t.id.toString(),
+        );
+      }
+    }
   }
 
   Future<void> _load() async {
@@ -214,6 +235,7 @@ class SelectTrainingScreen extends StatefulWidget {
 
 class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
   final _svc = TrainingService();
+  final _notificationSvc = AppNotificationService();
   List<TrainingOption> _options = [];
   bool _loading = true;
 
@@ -240,8 +262,13 @@ class _SelectTrainingScreenState extends State<SelectTrainingScreen> {
         teacherUuid: widget.teacherId,      // ✅ matches new service param
         trainingOptionId: option.id.toString(),
       );
-      // TODO(notifications): notify the principal that a new application
-      // was submitted for `option.title`.
+      // notify principal
+      await _notificationSvc.notifyPrincipal(
+        message:
+            "A teacher has applied for '${option.title}'. Please review the application.",
+        type: "training",
+        referenceId: option.id.toString(),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content:
@@ -389,8 +416,12 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
       certificateUrl: _certPath, // null is fine
       photoUrls: _photoPaths,
     );
-    // TODO(notifications): notify the principal that a training report
-    // was submitted and is ready for review.
+    await AppNotificationService().notifyPrincipal(
+      message:
+          "A training report for '${widget.training.title}' has been submitted for review.",
+      type: "training",
+      referenceId: widget.training.id.toString(),
+    );
     setState(() => _saving = false);
     if (mounted) {
       ScaffoldMessenger.of(context)

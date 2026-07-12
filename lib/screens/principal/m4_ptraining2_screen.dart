@@ -6,6 +6,7 @@ import '../../widgets/custom_textfield.dart';
 import '../../models/m4_training_model.dart';
 import '../../services/m4_training_service.dart';
 import '../../utils/theme_constants.dart';
+import '../../services/app_notification_service.dart';
 
 // ── Fix #5: some existing training options were saved with a category
 // (or mode) value that is no longer part of AppConstants.trainingCategories
@@ -46,6 +47,7 @@ class _AddTrainingOptionScreenState extends State<AddTrainingOptionScreen> {
   final _dateDisplayCtrl = TextEditingController();
 
   final _trainingSvc = TrainingService();
+  final _notificationSvc = AppNotificationService();
 
   String _category = AppConstants.trainingCategories.first;
   String _mode = 'Online';
@@ -96,9 +98,20 @@ class _AddTrainingOptionScreenState extends State<AddTrainingOptionScreen> {
             : _meetingLinkCtrl.text.trim(),
       );
 
-      await _trainingSvc.createTrainingOption(newOption);
-      // TODO(notifications): notify all teachers that a new training
-      // option was published.
+      final trainingId = await _trainingSvc.createTrainingOption(newOption);
+
+      // notify all teachers
+      final teachers = await _trainingSvc.getAllTeachers();
+
+      for (final teacher in teachers) {
+        await _notificationSvc.createNotification(
+          userId: teacher['user_id'],
+          message: 
+              'New training available: ${newOption.title}',
+          type: 'training',
+          referenceId: trainingId.toString(),
+        );
+      }
 
       if (mounted) Navigator.pop(context);
     } finally {

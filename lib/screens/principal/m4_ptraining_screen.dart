@@ -7,6 +7,7 @@ import '../../models/m4_training_model.dart';
 import '../../widgets/loading_widget.dart';
 import 'm4_ptraining2_screen.dart';
 import '../../utils/theme_constants.dart';
+import '../../services/app_notification_service.dart';
 
 class PrincipalTrainingScreen extends StatefulWidget {
   const PrincipalTrainingScreen({super.key});
@@ -19,7 +20,8 @@ class PrincipalTrainingScreen extends StatefulWidget {
 class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
     with SingleTickerProviderStateMixin {
   final _svc = TrainingService();
-  final _docStorageSvc = StorageService();
+  final _notificationSvc = AppNotificationService();
+  // final _docStorageSvc = StorageService();
   final _searchController = TextEditingController();
 
   String _search = '';
@@ -76,6 +78,7 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
 
   @override
   void dispose() {
+    _searchController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -269,8 +272,18 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
               final date = DateTime.tryParse(opt['training_date'] as String? ?? '') ??
                   DateTime.now();
               final isCancelled = opt['is_cancelled'] == true;
-              final isClosed = !isCancelled && date.isBefore(DateTime.now());
-
+              final today = DateTime.now();
+              final trainingDay = DateTime(
+                date.year,
+                date.month,
+                date.day,
+              );
+              final currentDay = DateTime(
+                today.year,
+                today.month,
+                today.day,
+              );
+              final isClosed = !isCancelled && !trainingDay.isAfter(currentDay);
               return Card(
                 elevation: 3,
                 shadowColor: navy.withOpacity(0.15),
@@ -376,8 +389,10 @@ class _PrincipalTrainingScreenState extends State<PrincipalTrainingScreen>
                         final title = opt['title'] as String? ?? 'this training';
                         final confirmed = await _confirmCancel(title);
                         if (!confirmed) return;
-                        // TODO(notifications): notify all applicants that this
-                        // training option was cancelled by the principal.
+                        await _notificationSvc.notifyTrainingCancelled(
+                            trainingOptionId: opt['id'].toString(),
+                            title: opt['title'],
+                        );
                         await _svc.cancelTrainingOption(opt['id'].toString());
                         _load();
                       }
@@ -743,6 +758,7 @@ class TrainingApplicantsScreen extends StatefulWidget {
 
 class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
   final _svc = TrainingService();
+  final _notificationSvc = AppNotificationService();
   final _docStorageSvc = StorageService();
   late List<Map<String, dynamic>> _applicants;
   final Map<String, Future<String>> _downloadUrlCache = {};
@@ -775,29 +791,28 @@ class _TrainingApplicantsScreenState extends State<TrainingApplicantsScreen> {
         rejectionReason,
       );
 
-      setState(() {
-        final idx = _applicants.indexWhere(
-          (a) => a['id'].toString() == trainingId,
-        );
+      int idx = _applicants.indexWhere(
+        (a) => a['id'].toString() == trainingId,
+      );
 
-        if (idx != -1) {
-          _applicants[idx] = {
-            ..._applicants[idx],
-            'status': status,
-            'rejection_reason': status == 'rejected'
-                ? rejectionReason
-                : null,
-          };
-        }
+      if (idx == -1) return;
+
+      setState(() {
+        _applicants[idx] = {
+          ..._applicants[idx],
+          'status': status,
+          'rejection_reason':
+              status == 'rejected' ? rejectionReason : null,
+        };
       });
-      // TODO(notifications): notify the teacher that their training
-      // application status changed to `status`.
+
+      await _notificationSvc.notifyTrainingStatusUpdated(
+        teacherId: _applicants[idx]['teacher_uuid'],
+        trainingTitle: widget.option['title'],
+        status: status,
+        rejectionReason: rejectionReason,
+      );
     } catch (e) {
-      // NOTE: if this keeps failing specifically for "reset to pending",
-      // it is very likely a Supabase RLS policy on `trainings` that only
-      // allows the owning teacher (teacher_uuid = auth.uid()) to UPDATE
-      // status, blocking the principal's own account. Add/adjust an
-      // UPDATE policy on `trainings` that also allows principal accounts.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to update status: $e')),
       );
@@ -1405,7 +1420,7 @@ class _PrincipalTrainingReportScreenState
                     t.certificateUrl!,
                   );
 
-                  launchUrl(
+                  await launchUrl(
                     Uri.parse(url),
                     mode:
                         LaunchMode.inAppBrowserView,
