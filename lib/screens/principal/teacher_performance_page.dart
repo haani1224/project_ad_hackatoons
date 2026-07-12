@@ -93,7 +93,7 @@ class _TeacherPerformancePageState extends State<TeacherPerformancePage> {
           ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: gold,
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrincipalEvaluatePage())).then((_) => _fetchTeacherData()),
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PeerEvaluatePage())).then((_) => _fetchTeacherData()),
         label: const Text("EVALUATE", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         icon: const Icon(Icons.assessment_rounded, color: Colors.white),
       ),
@@ -129,7 +129,7 @@ class _TeacherPerformancePageState extends State<TeacherPerformancePage> {
         ),
         trailing: Text("${kpi.toInt()}%", style: TextStyle(fontWeight: FontWeight.w900, color: isWarning ? Colors.red : navy, fontSize: 16)),
         onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => PerformanceDetailsPage(teacherData: teacher)));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => TeacherPerformanceDetailsPage(teacherData: teacher)));
         },
       ),
     );

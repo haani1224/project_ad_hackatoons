@@ -9,6 +9,7 @@ import 'm1_trecord_screen.dart';
 import 'm4_ttraining_screen.dart';
 import 'teacher_home.dart';
 import 'teacher_leave_module.dart';
+import 'performance_tracker_dashboard.dart';
 import 'teacher_notification_screen.dart';
 import '../../widgets/notification_button.dart';
 import '../../services/app_notification_service.dart';
@@ -254,7 +255,14 @@ class _TeacherMainPageState extends State<TeacherMainPage> {
                   subtitle: "Track student progress",
                   icon: Icons.emoji_events_outlined,
                   gradient: const [Color(0xFFB07D1A), Color(0xFFE59D2C)],
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PerformanceTrackerDashboard(teacher: widget.teacher),
+                      ),
+                    );
+                  },
                 ),
 
                 _moduleCard(

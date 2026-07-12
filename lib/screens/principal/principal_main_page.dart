@@ -7,6 +7,7 @@ import 'm4_ptraining_screen.dart';
 import 'm1_precords_screen.dart';
 import 'principal_dashboard.dart';
 import 'principal_leave_approval.dart';
+import 'teacher_performance_page.dart';
 import '../../utils/theme_constants.dart';
 import 'principal_notification_screen.dart';
 import '../../services/app_notification_service.dart';
@@ -116,11 +117,15 @@ class _PrincipalMainPageState extends State<PrincipalMainPage> {
                     MaterialPageRoute(builder: (_) => PrincipalDashboard()),
                   ),
                 ),
-                const _ModuleCard(
+                _ModuleCard(
                   title: 'Performance',
                   subtitle: 'Track achievements',
                   icon: Icons.bar_chart_rounded,
                   color: Color(0xFF22C55E),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => TeacherPerformancePage()),
+                  ),
                 ),
                  _ModuleCard(
                   title: 'Leave',
