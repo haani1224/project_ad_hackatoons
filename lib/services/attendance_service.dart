@@ -49,6 +49,6 @@ class AttendanceService with ChangeNotifier {
       'check_out_time': checkOut,
     });
 
-    await _fetchAttendanceData();
+    await _fetchAttendanceData(); // Refresh list setelah input
   }
 }

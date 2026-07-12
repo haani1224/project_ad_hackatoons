@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'evaluate_teachers_page.dart';
 import 'performance_details_page.dart';
-import 'principal_evaluate_teacher_page.dart'; // 🟢 Tambahin import ini buat navigasi FAB
 
 class TeacherPerformancePage extends StatefulWidget {
   const TeacherPerformancePage({super.key});
@@ -10,132 +11,126 @@ class TeacherPerformancePage extends StatefulWidget {
 }
 
 class _TeacherPerformancePageState extends State<TeacherPerformancePage> {
-  static const Color navy = Color(0xFF1B2E4B);
-  static const Color navyLight = Color(0xFF2E4365);
-  static const Color gold = Color(0xFFE59D2C);
-  static const Color bgColor = Color(0xFFF0F2F7);
+  final _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _teachers = [];
+  bool _isLoading = true;
 
-  // DUMMY DATA GURU
-  final List<Map<String, dynamic>> _teachers = [
-    {'name': 'Tc. Fetty', 'role': 'Senior Teacher', 'kpi': 85},
-    {'name': 'Tc. Sutie', 'role': 'Math Teacher', 'kpi': 55}, 
-    {'name': 'Tc. Zu', 'role': 'Science Teacher', 'kpi': 92},
-    {'name': 'Tc. Siti', 'role': 'English Teacher', 'kpi': 45}, 
-    {'name': 'Tc. Mira', 'role': 'PE Teacher', 'kpi': 78},
-  ];
+  static const Color navy = Color(0xFF1B2E4B);
+  static const Color gold = Color(0xFFE59D2C);
+  static const Color lightGray = Color(0xFFF0F2F7);
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTeacherData();
+  }
+
+  Future<void> _fetchTeacherData() async {
+    setState(() => _isLoading = true);
+    try {
+      final users = await _supabase.from('users').select('id, name, role').eq('role', 'teacher');
+      final evaluations = await _supabase.from('evaluations').select('*');
+
+      List<Map<String, dynamic>> processed = [];
+
+      for (var u in users) {
+        var tId = u['id'];
+        var evals = evaluations.where((e) => e['target_teacher_id'] == tId).toList();
+        
+        // Logika KPI: Jika tidak ada evaluasi, beri nilai 80.0 sebagai placeholder
+        double avgKpi = 80.0; 
+        
+        if (evals.isNotEmpty) {
+          double sum = 0;
+          for (var e in evals) {
+            double totalScore = ((e['punctuality_score'] ?? 0) + (e['teaching_score'] ?? 0) + 
+                                (e['material_score'] ?? 0) + (e['training_score'] ?? 0)).toDouble();
+            sum += (totalScore / 20) * 100;
+          }
+          avgKpi = sum / evals.length;
+        }
+
+        // Menambahkan data metric dummy agar PerformanceDetailsPage tidak kosong
+        processed.add({
+          'id': tId.toString(),
+          'name': u['name'] ?? 'No Name',
+          'role': u['role'],
+          'kpi': avgKpi,
+          'attendance': avgKpi, // Placeholder sinkronisasi
+          'classroom': avgKpi,
+          'teaching': avgKpi,
+          'student_dev': avgKpi,
+          'documentation': avgKpi,
+          'communication': avgKpi,
+        });
+      }
+
+      setState(() {
+        _teachers = processed;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Error fetching data: $e");
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: lightGray,
       appBar: AppBar(
+        title: const Text("Staff Performance", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: navy,
-        foregroundColor: Colors.white,
-        title: const Text("Staff Performance", style: TextStyle(fontWeight: FontWeight.w600)),
-        centerTitle: true,
         elevation: 0,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            color: navy,
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-            child: const Text(
-              "Select a teacher to view detailed metrics or evaluate staff.",
-              style: TextStyle(color: Colors.white70, fontSize: 14),
-            ),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator(color: navy))
+        : ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            itemCount: _teachers.length,
+            itemBuilder: (context, index) => _buildTeacherListCard(_teachers[index]),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-            child: Text(
-              "ALL TEACHERS (${_teachers.length})",
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: _teachers.length,
-              itemBuilder: (context, index) {
-                final teacher = _teachers[index];
-                return _buildTeacherListCard(teacher);
-              },
-            ),
-          ),
-        ],
-      ),
-      
-      // 🟢 TOMBOL EVALUATE PINDAH KESINI JADI FAB (Konsisten sama halaman Duty)
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: gold,
-        elevation: 4,
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const PeerEvaluatePage()));
-        },
-        icon: const Icon(Icons.rate_review_rounded, color: Colors.white),
-        label: const Text(
-          "Evaluate",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrincipalEvaluatePage())).then((_) => _fetchTeacherData()),
+        label: const Text("EVALUATE", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        icon: const Icon(Icons.assessment_rounded, color: Colors.white),
       ),
     );
   }
 
   Widget _buildTeacherListCard(Map<String, dynamic> teacher) {
-    final double kpi = (teacher['kpi'] ?? 0).toDouble();
+    final double kpi = (teacher['kpi'] ?? 80.0).toDouble();
     final bool isWarning = kpi < 60;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () {
-          // NAVIGASI KE DETAIL
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TeacherPerformanceDetailsPage(teacherData: teacher),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: navyLight.withOpacity(0.1),
-                child: Text(teacher['name'][0], style: const TextStyle(color: navy, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(teacher['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: navy)),
-                    Text(teacher['role'], style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text("${kpi.toInt()}%", style: TextStyle(fontWeight: FontWeight.bold, color: isWarning ? Colors.red : gold)),
-                  const Text("KPI", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                ],
-              ),
-              const SizedBox(width: 10),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-            ],
-          ),
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: navy.withOpacity(0.1),
+          child: Text(teacher['name'][0], style: const TextStyle(fontWeight: FontWeight.bold, color: navy)),
         ),
+        title: Text(teacher['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: navy)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: kpi / 100,
+              backgroundColor: Colors.grey.shade200,
+              color: isWarning ? Colors.red : gold,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ],
+        ),
+        trailing: Text("${kpi.toInt()}%", style: TextStyle(fontWeight: FontWeight.w900, color: isWarning ? Colors.red : navy, fontSize: 16)),
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => PerformanceDetailsPage(teacherData: teacher)));
+        },
       ),
     );
   }

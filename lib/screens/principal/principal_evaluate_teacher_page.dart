@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PeerEvaluatePage extends StatefulWidget {
   const PeerEvaluatePage({super.key});
@@ -8,41 +9,49 @@ class PeerEvaluatePage extends StatefulWidget {
 }
 
 class _PeerEvaluatePageState extends State<PeerEvaluatePage> {
-  static const Color navy = Color(0xFF1B2E4B);
-  static const Color navyLight = Color(0xFF2E4365);
-  static const Color gold = Color(0xFFE59D2C);
-  static const Color bgColor = Color(0xFFF0F2F7);
-
+  final _supabase = Supabase.instance.client;
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
+  bool _isLoadingTeachers = true;
 
-  // DUMMY DATA GURU BUAT DROPDOWN (Bisa diganti pakai data Supabase nanti)
-  final List<String> _teachers = [
-    'Sarah Jane',
-    'Michael Wong',
-    'Ahmad Rizal',
-    'Jessica Lin',
-    'David Lee'
-  ];
-  String? _selectedTeacher;
+  // Data guru dari Supabase
+  List<Map<String, dynamic>> _teachers = [];
+  String? _selectedTeacherId; // Kita simpan ID, bukan nama
 
-  // State buat nyimpen nilai slider (Range 1 - 5)
-  double _punctualityScore = 3;
-  double _teachingScore = 3;
-  double _teamworkScore = 3;
+  double _punctualityScore = 3.0;
+  double _teachingScore = 3.0;
+  double _teamworkScore = 3.0;
 
   final TextEditingController _feedbackCtrl = TextEditingController();
 
   @override
-  void dispose() {
-    _feedbackCtrl.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _fetchTeachers();
+  }
+
+  Future<void> _fetchTeachers() async {
+    try {
+      // Pastikan nama tabel di bawah sesuai dengan database Anda (misal: 'profiles')
+      final data = await _supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('role', 'teacher');
+          
+      setState(() {
+        _teachers = List<Map<String, dynamic>>.from(data);
+        _isLoadingTeachers = false;
+      });
+    } catch (e) {
+      debugPrint("Error fetching teachers: $e");
+      setState(() => _isLoadingTeachers = false);
+    }
   }
 
   Future<void> _submitEvaluation() async {
-    if (!_formKey.currentState!.validate() || _selectedTeacher == null) {
+    if (!_formKey.currentState!.validate() || _selectedTeacherId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select a teacher and fill the feedback."), backgroundColor: Colors.red),
+        const SnackBar(content: Text("Pilih guru dan isi feedback!"), backgroundColor: Colors.red),
       );
       return;
     }
@@ -50,22 +59,27 @@ class _PeerEvaluatePageState extends State<PeerEvaluatePage> {
     setState(() => _isSubmitting = true);
 
     try {
-      // TODO: Logika Insert ke tabel 'evaluations' di Supabase masuk sini
-      // Kalkulasi rata-rata (kalau lu butuh nilai mentahnya)
-      // double avgScore = (_punctualityScore + _teachingScore + _teamworkScore) / 3;
-      
-      await Future.delayed(const Duration(seconds: 1)); // Simulasi loading server
+      // Masukkan ke tabel 'evaluations'
+      await _supabase.from('evaluations').insert({
+        'evaluator_id': _supabase.auth.currentUser!.id,
+        'target_teacher_id': _selectedTeacherId,
+        'punctuality_score': _punctualityScore.toInt(),
+        'teaching_score': _teachingScore.toInt(),
+        'teamwork_score': _teamworkScore.toInt(),
+        'feedback': _feedbackCtrl.text.trim(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Evaluation submitted successfully!"), backgroundColor: Colors.green),
+          const SnackBar(content: Text("Evaluasi berhasil dikirim!"), backgroundColor: Colors.green),
         );
-        Navigator.pop(context); // Balik ke halaman Performance Dashboard
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to submit: $e"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Gagal: $e"), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -73,185 +87,75 @@ class _PeerEvaluatePageState extends State<PeerEvaluatePage> {
     }
   }
 
+  // --- BUILD UI ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: const Color(0xFFF0F2F7),
       appBar: AppBar(
-        backgroundColor: navy,
-        foregroundColor: Colors.white,
-        title: const Text("Evaluate Teacher", style: TextStyle(fontWeight: FontWeight.w600)),
-        centerTitle: true,
-        elevation: 0,
+        title: const Text("Evaluate Teacher"),
+        backgroundColor: const Color(0xFF1B2E4B),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. CARD PILIH GURU
-              _buildSectionCard(
-                title: "SELECT STAFF",
-                child: DropdownButtonFormField<String>(
-                  value: _selectedTeacher,
-                  hint: Text("Choose a teacher to evaluate", style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
-                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade400),
-                  decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.person_outline, color: Colors.grey.shade400, size: 20),
-                    filled: true,
-                    fillColor: bgColor,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      body: _isLoadingTeachers 
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  _buildSectionCard(
+                    title: "SELECT STAFF",
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedTeacherId,
+                      items: _teachers.map((t) => DropdownMenuItem <String>(
+                        value: t['id'], 
+                        child: Text(t['full_name'] ?? 'No Name')
+                      )).toList(),
+                      onChanged: (val) => setState(() => _selectedTeacherId = val),
+                      validator: (val) => val == null ? 'Pilih guru' : null,
+                    ),
                   ),
-                  items: _teachers.map((name) {
-                    return DropdownMenuItem<String>(
-                      value: name,
-                      child: Text(name, style: const TextStyle(fontSize: 14, color: navy)),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => _selectedTeacher = val),
-                  validator: (val) => val == null ? 'Required' : null,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // 2. CARD SCORING METRICS
-              _buildSectionCard(
-                title: "PERFORMANCE METRICS (1-5)",
-                child: Column(
-                  children: [
-                    _buildScoringSlider(
-                      label: "Punctuality & Discipline",
-                      value: _punctualityScore,
-                      onChanged: (val) => setState(() => _punctualityScore = val),
+                  const SizedBox(height: 20),
+                  _buildSectionCard(
+                    title: "METRICS",
+                    child: Column(
+                      children: [
+                        _buildScoringSlider("Punctuality", _punctualityScore, (v) => setState(() => _punctualityScore = v)),
+                        _buildScoringSlider("Teaching", _teachingScore, (v) => setState(() => _teachingScore = v)),
+                        _buildScoringSlider("Teamwork", _teamworkScore, (v) => setState(() => _teamworkScore = v)),
+                      ],
                     ),
-                    const Divider(height: 30),
-                    _buildScoringSlider(
-                      label: "Pedagogical / Teaching Skills",
-                      value: _teachingScore,
-                      onChanged: (val) => setState(() => _teachingScore = val),
-                    ),
-                    const Divider(height: 30),
-                    _buildScoringSlider(
-                      label: "Teamwork & Communication",
-                      value: _teamworkScore,
-                      onChanged: (val) => setState(() => _teamworkScore = val),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // 3. CARD FEEDBACK
-              _buildSectionCard(
-                title: "CONSTRUCTIVE FEEDBACK",
-                child: TextFormField(
-                  controller: _feedbackCtrl,
-                  maxLines: 4,
-                  validator: (val) => val == null || val.isEmpty ? 'Feedback is required' : null,
-                  decoration: InputDecoration(
-                    hintText: "Provide detailed feedback on the teacher's performance...",
-                    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                    filled: true,
-                    fillColor: bgColor,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // TOMBOL SUBMIT EVALUATION
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: gold,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 2,
-                ),
-                onPressed: _isSubmitting ? null : _submitEvaluation,
-                child: _isSubmitting 
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text("Submit Evaluation", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- WIDGET HELPER UI ---
-
-  Widget _buildSectionCard({required String title, required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2),
-          ),
-          const SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScoringSlider({required String label, required double value, required Function(double) onChanged}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: navy)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: navyLight.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text(
-                value.toInt().toString(),
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: navy),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _feedbackCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(hintText: "Feedback..."),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submitEvaluation,
+                    child: _isSubmitting ? const CircularProgressIndicator() : const Text("Submit"),
+                  )
+                ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: gold,
-            inactiveTrackColor: Colors.grey.shade200,
-            thumbColor: navy,
-            overlayColor: gold.withOpacity(0.2),
-            trackHeight: 6,
           ),
-          child: Slider(
-            value: value,
-            min: 1,
-            max: 5,
-            divisions: 4, // Bikin detakannya pas di angka bulat 1, 2, 3, 4, 5
-            label: value.toInt().toString(),
-            onChanged: onChanged,
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text("Needs Work", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-            Text("Excellent", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-          ],
-        )
-      ],
     );
   }
+
+  // Helper methods (biarkan sama seperti versi sebelumnya)
+  Widget _buildSectionCard({required String title, required Widget child}) => Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title), const SizedBox(height: 10), child])
+  );
+
+  Widget _buildScoringSlider(String label, double val, Function(double) onChanged) => Column(
+    children: [
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label), Text(val.toInt().toString())]),
+      Slider(value: val, min: 1, max: 5, divisions: 4, onChanged: onChanged),
+    ]
+  );
 }
