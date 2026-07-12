@@ -416,125 +416,176 @@ class _TeacherRecordViewScreenState extends State<TeacherRecordViewScreen> {
     if (status == 'approved') statusColor = Colors.green;
     if (status == 'change_requested') statusColor = Colors.red;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          title: Text(label),
-          subtitle: Row(
-            children: [
-              if (path == null)
-                const Text('Not Submitted', style: TextStyle(color: Colors.grey))
-              else ...[
-                Text(
-                  status == 'approved'
-                      ? 'Approved ✓'
-                      : status == 'change_requested'
-                          ? 'Changes Requested'
-                          : 'Pending Review',
-                  style: TextStyle(
-                    color: status == 'change_requested' ? Colors.red.shade900 : statusColor, 
-                    fontWeight: FontWeight.bold, 
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  '• tap to view',
-                  style: TextStyle(fontSize: 10, color: Colors.grey),
-                ),
-              ],
-            ],
-          ),
-          trailing: PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'download') {
-                if (path == null) return;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: path == null
+          ? null
+          : () async {
+              try {
+                final urlString = await _storageSvc.getDownloadUrl(path);
+                final Uri url = Uri.parse(urlString);
+                await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+              } catch (e) {
+                if (!context.mounted) return;
 
-                try {
-                  final urlString = await _storageSvc.getDownloadUrl(path!);
-                  final Uri url = Uri.parse(urlString);
-                  await launchUrl(url, mode: LaunchMode.inAppBrowserView);
-                } catch (e) {
-                  if (!context.mounted) return;
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Download Failed'),
-                      content: Text('$e'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('OK'),
-                        )
-                      ],
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Cannot Open File'),
+                    content: Text('Error system details: $e'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
+                      )
+                    ],
+                  ),
+                );
+              }
+            },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: navyLight.withOpacity(0.15),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: navyLight.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.folder_open_rounded,
+                  color: navy,
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
-                  );
-                }
-              }
 
-              if (value == 'approve') {
-                await _updateSingleDocInDatabase(docType, 'approved');
-              }
+                    const SizedBox(height: 6),
 
-              if (value == 'request') {
-                _showRejectDocDialog(context, label, docType);
-              }
-            },
-            itemBuilder: (context) {
-              final isApproved = status == 'approved';
-
-              return [
-                if (path != null)
-                  const PopupMenuItem(
-                    value: 'download',
-                    child: Text('Download'),
-                  ),
-
-                if (!isApproved)
-                  const PopupMenuItem(
-                    value: 'approve',
-                    child: Text('Approve'),
-                  ),
-
-                if (path != null)
-                  const PopupMenuItem(
-                    value: 'request',
-                    child: Text('Request Changes'),
-                  ),
-              ];
-            },
-          ),
-          onTap: path == null ? null : () async {
-            try {
-              // 🟢 FIXED: Successfully resolves URL now via initialized local _storageSvc
-              if (path == null) return;
-
-              final urlString = await _storageSvc.getDownloadUrl(path);
-              final Uri url = Uri.parse(urlString);
-              await launchUrl(url, mode: LaunchMode.inAppBrowserView);
-            } catch (e) {
-              if (!context.mounted) return;
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Cannot Open File'),
-                  content: Text('Error system details: $e'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))
+                    Text(
+                      path == null
+                          ? 'Not Submitted'
+                          : status == 'approved'
+                              ? 'Approved ✓'
+                              : status == 'change_requested'
+                                  ? 'Changes Requested'
+                                  : 'Pending Review',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
-              );
-            }
-          },
-        ),
-        if (status == 'change_requested' && reason != null)
-          Padding(
-            padding: const EdgeInsets.only(left: 16, bottom: 8, right: 16),
-            child: Text('⚠️ Correction needed: "$reason"', style: TextStyle(color: Colors.red.shade900, fontSize: 13, fontStyle: FontStyle.italic)),
+              ),
+
+              PopupMenuButton<String>(
+                onSelected: (value) async {
+                  if (value == 'download') {
+                    if (path == null) return;
+
+                    try {
+                      final urlString = await _storageSvc.getDownloadUrl(path!);
+                      final Uri url = Uri.parse(urlString);
+                      await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('Download Failed'),
+                            content: Text('$e'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('OK'),
+                              )
+                            ],
+                          ),
+                        );
+                    }
+                  }
+
+                  if (value == 'approve') {
+                    await _updateSingleDocInDatabase(docType, 'approved');
+                  }
+
+                  if (value == 'request') {
+                    _showRejectDocDialog(context, label, docType);
+                  }
+                },
+                itemBuilder: (context) {
+                  final isApproved = status == 'approved';
+
+                  return [
+                    if (path != null)
+                      const PopupMenuItem(
+                        value: 'download',
+                        child: Text('Download'),
+                      ),
+
+                    if (!isApproved)
+                      const PopupMenuItem(
+                        value: 'approve',
+                        child: Text('Approve'),
+                      ),
+
+                    if (path != null)
+                      const PopupMenuItem(
+                        value: 'request',
+                        child: Text('Request Changes'),
+                      ),
+                  ];
+                },
+              ),
+            ],
           ),
-        const Divider(height: 1),
-      ],
+
+          if (status == 'change_requested' && reason != null)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 16,
+                bottom: 8,
+                right: 16,
+                top: 12,
+              ),
+              child: Text(
+                '⚠️ Correction needed: "$reason"',
+                style: TextStyle(
+                  color: Colors.red.shade900,
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

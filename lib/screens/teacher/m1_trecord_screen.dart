@@ -8,6 +8,7 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../widgets/loading_widget.dart';
 import '../../utils/theme_constants.dart';
+import '../../services/app_notification_service.dart';
 
 class TeacherProfileScreen extends StatefulWidget {
   // const TeacherProfileScreen({super.key, required TeacherModel teacher});
@@ -26,6 +27,7 @@ class TeacherProfileScreen extends StatefulWidget {
 class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   final _svc = TeacherRecordService();
   final _docStorageSvc = StorageService();
+  final _notificationSvc = AppNotificationService();
   TeacherRecord? _record;
   bool _loading = true;
   bool _editing = false;
@@ -189,6 +191,12 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     await Supabase.instance.client
         .from('teacher_records')
         .upsert(payload, onConflict: 'user_id');
+    
+    await _notificationSvc.notifyPrincipal(
+      message: "${_nameCtrl.text} submitted profile information.",
+      type: "teacher_submission",
+      referenceId: uid,
+    );
   }
 
   @override
@@ -466,14 +474,46 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
             const SizedBox(height: 8),
             
             // Document Tiles List
-            _section('', [
-              _docTile('1. MyKad (PDF/PNG/JPG)', _myKadPath, (p) => setState(() => _myKadPath = p), 'mykad'),
-              _docTile('2. Passport Photo (PNG/JPG)', _passportPath, (p) => setState(() => _passportPath = p), 'passport'),
-              _docTile('3. Resume/CV (PDF)', _resumePath, (p) => setState(() => _resumePath = p), 'resume'),
-              _docTile('4. Latest Academic Certificates (PDF)', _academicPath, (p) => setState(() => _academicPath = p), 'academic'),
-              _docTile('5. Medical Check Up Report (PDF)', _medicalPath, (p) => setState(() => _medicalPath = p), 'medical'),
-              _docTile('6. Header of Bank Statement (PDF)', _bankPath, (p) => setState(() => _bankPath = p), 'bank'),
-            ]),
+            Column(
+              children: [
+                _docTile(
+                  'MyKad',
+                  _myKadPath,
+                  (p) => setState(() => _myKadPath = p),
+                  'mykad',
+                ),
+                _docTile(
+                  'Passport Photo',
+                  _passportPath,
+                  (p) => setState(() => _passportPath = p),
+                  'passport',
+                ),
+                _docTile(
+                  'Resume / CV',
+                  _resumePath,
+                  (p) => setState(() => _resumePath = p),
+                  'resume',
+                ),
+                _docTile(
+                  'Academic Certificate',
+                  _academicPath,
+                  (p) => setState(() => _academicPath = p),
+                  'academic',
+                ),
+                _docTile(
+                  'Medical Check Up Report',
+                  _medicalPath,
+                  (p) => setState(() => _medicalPath = p),
+                  'medical',
+                ),
+                _docTile(
+                  'Bank Statement Header',
+                  _bankPath,
+                  (p) => setState(() => _bankPath = p),
+                  'bank',
+                ),
+              ],
+            ),
             const SizedBox(height: 32),
           ],
         ),
@@ -514,30 +554,78 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
       statusText = 'Correction Requested ⚠️';
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(label),
-          subtitle: Text(
-            statusText,
-            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 13),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: navyLight.withOpacity(0.15),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              // if (currentPath != null)
-              //   IconButton(
-              //     icon: const Icon(Icons.open_in_new),
-              //     tooltip: 'View Document',
-              //     onPressed: () async {
-              //       print("VIEW BUTTON CLICKED");
-              //       final urlString = await _docStorageSvc.getDownloadUrl(currentPath);
-              //       final Uri url = Uri.parse(urlString);
-              //       await launchUrl(url, mode: LaunchMode.inAppBrowserView);
-              //     },
-              //   ),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: navyLight.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.description_rounded,
+                  color: navy,
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
               if (currentPath != null)
                 IconButton(
                   icon: const Icon(Icons.open_in_new),
@@ -563,46 +651,6 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     }
                   },
                 ),
-              // if (_editingDocs && status != 'approved')
-              //   IconButton(
-              //     icon: Icon(currentPath == null ? Icons.upload_file : Icons.published_with_changes),
-              //     onPressed: () async {
-              //       print("UPLOAD1 BUTTON CLICKED");
-              //       if (uid != null) {
-              //         final path = await _docStorageSvc.uploadTeacherDocument(
-              //           userId: uid, 
-              //           docType: type,
-              //           oldPath: currentPath, 
-              //         );
-                      
-              //         if (path != null && mounted) {
-              //           setState(() { onUploaded(path); });
-                        
-              //           try {
-              //             await _svc.updateTeacherDocumentPath(
-              //               userId: uid,
-              //               docType: type,
-              //               filePath: path,
-              //             );
-                          
-              //             await _loadRecord(); 
-                          
-              //             if (mounted) {
-              //               ScaffoldMessenger.of(context).showSnackBar(
-              //                 const SnackBar(content: Text('File uploaded and linked successfully!'))
-              //               );
-              //             }
-              //           } catch (e) {
-              //             if (mounted) {
-              //               ScaffoldMessenger.of(context).showSnackBar(
-              //                 SnackBar(content: Text('Failed to link file to profile table: $e'))
-              //               );
-              //             }
-              //           }
-              //         }
-              //       }
-              //     },
-              //   ),
               if (_editingDocs && status != 'approved')
                 IconButton(
                   icon: Icon(currentPath == null ? Icons.upload_file : Icons.published_with_changes),
@@ -623,7 +671,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                             docType: type,
                             filePath: path,
                           );
-
+                          await _notificationSvc.notifyPrincipal(
+                            message: "${_nameCtrl.text} has submitted documents for verification.",
+                            type: "document_submission",
+                            referenceId: uid,
+                          );
                           // DB write succeeded — now safe to update local state
                           setState(() { onUploaded(path); });
 
@@ -645,53 +697,6 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     }
                   },
                 ),
-              // if (_editingDocs && currentPath != null && status != 'approved')
-              //   IconButton(
-              //     icon: const Icon(Icons.delete_forever, color: Colors.red),
-              //     tooltip: 'Delete Document',
-              //     onPressed: () async {
-              //       print("UPLOAD2 BUTTON CLICKED");
-              //       final confirmed = await showDialog<bool>(
-              //         context: context,
-              //         builder: (context) => AlertDialog(
-              //           title: const Text('Delete Document?'),
-              //           content: const Text('This will permanently remove the file from storage.'),
-              //           actions: [
-              //             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              //             TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
-              //           ],
-              //         ),
-              //       );
-
-              //       if (confirmed == true && uid != null) {
-              //         // 1. Delete physical storage file
-              //         await _docStorageSvc.deleteTeacherDocument(path: currentPath);
-                      
-              //         // 2. Wipe the local UI tracking variables immediately
-              //         setState(() { 
-              //           onUploaded(null); 
-              //         });
-                      
-              //         // 3. Clear out the database file path column to null
-              //         await _svc.updateTeacherDocumentPath(
-              //           userId: uid, 
-              //           docType: type, 
-              //           filePath: null, // 🟢 Set explicitly to null instead of empty string
-              //         );
-
-              //         // 4. Update or clear out the approval status object entirely to null
-              //         await _svc.updateSingleDocStatus(
-              //           icNumber: _icCtrl.text.trim(),
-              //           docType: type,
-              //           status: null, // 🟢 Set to null directly
-              //           reason: null,
-              //         );
-
-              //         // 5. Fresh fetch from database to sync all states
-              //         await _loadRecord();
-              //       }
-              //     },
-              //   ),
               if (_editingDocs && currentPath != null && status != 'approved')
                 IconButton(
                   icon: const Icon(Icons.delete_forever, color: Colors.red),
@@ -759,26 +764,25 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     }
                   },
                 ),
-            ],
-          ),
-        ),
-        if (status == 'change_requested' && reason != null && currentPath != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            margin: const EdgeInsets.only(bottom: 8, top: 4),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.shade200),
+               ],
             ),
-            child: Text(
-              '❌ Principal Request: "$reason"\n(Please click "Manage Documents" to replace this file)',
-              style: TextStyle(color: Colors.red.shade900, fontSize: 12, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500),
+          if (status == 'change_requested' && reason != null && currentPath != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(bottom: 8, top: 4),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Text(
+                '❌ Principal Request: "$reason"\n(Please click "Manage Documents" to replace this file)',
+                style: TextStyle(color: Colors.red.shade900, fontSize: 12, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500),
+              ),
             ),
-          ),
-        const Divider(height: 1),
-      ],
+        ],
+      ),
     );
   }
 }
